@@ -1,7 +1,7 @@
 {
     "build": {
         "beforeDevCommand": "pnpm dev",
-        "beforeBuildCommand": "pnpm build",
+        "beforeBuildCommand": "npm run build",
         "devPath": "http://localhost:1420",
         "distDir": "../dist",
         "withGlobalTauri": false
@@ -35,18 +35,27 @@
             "http": {
                 "all": true,
                 "request": true,
-                "scope": ["http://**", "https://**"]
+                "scope": [
+                    "http://**",
+                    "https://**"
+                ]
             },
             "os": {
                 "all": true
             },
             "protocol": {
                 "asset": true,
-                "assetScope": ["$CACHE/**", "$CONFIG/**"]
+                "assetScope": [
+                    "$CACHE/**",
+                    "$CONFIG/**"
+                ]
             },
             "fs": {
                 "all": true,
-                "scope": ["$APPCONFIG/**", "$APPCACHE/**"]
+                "scope": [
+                    "$APPCONFIG/**",
+                    "$APPCACHE/**"
+                ]
             },
             "dialog": {
                 "open": true,
@@ -71,10 +80,20 @@
                 "icons/icon.ico"
             ],
             "deb": {
-                "depends": ["libxdo-dev", "libxcb1", "libxrandr2", "tesseract-ocr"]
+                "depends": [
+                    "libxdo-dev",
+                    "libxcb1",
+                    "libxrandr2",
+                    "tesseract-ocr"
+                ]
             },
             "rpm": {
-                "depends": ["libxdo-dev", "libxcb1", "libxrandr2", "tesseract-ocr"]
+                "depends": [
+                    "libxdo-dev",
+                    "libxcb1",
+                    "libxrandr2",
+                    "tesseract-ocr"
+                ]
             },
             "macOS": {
                 "entitlements": null,
