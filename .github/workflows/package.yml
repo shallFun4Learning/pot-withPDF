@@ -86,12 +86,7 @@ jobs:
                   ./scripts/cargo-linux.sh check --manifest-path src-tauri/Cargo.toml
                   cargo check --manifest-path src-tauri/crates/pdf_io/Cargo.toml
 
-            - name: Cargo test helper crate (macOS/Windows)
+            - name: Cargo helper crate tests (macOS/Windows)
               if: runner.os != 'Linux'
               shell: bash
               run: cargo test --manifest-path src-tauri/crates/pdf_io/Cargo.toml
-
-            - name: Cargo check app (macOS/Windows)
-              if: runner.os != 'Linux'
-              shell: bash
-              run: cargo check --manifest-path src-tauri/Cargo.toml

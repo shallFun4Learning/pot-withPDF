@@ -1,8 +1,12 @@
+#[cfg(target_os = "macos")]
+use dirs::cache_dir;
 use crate::config::get;
 use crate::config::set;
 use crate::StringWrapper;
 use crate::APP;
 use log::{info, warn};
+#[cfg(target_os = "macos")]
+use std::fs;
 use tauri::Manager;
 use tauri::Monitor;
 use tauri::Window;
