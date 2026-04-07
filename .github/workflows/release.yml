@@ -9,28 +9,36 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-bundles:
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: ubuntu-24.04
             args: ''
+            artifact_name: bundle-ubuntu
+            bundle_glob: src-tauri/target/release/bundle/**/*
           - platform: windows-latest
             args: ''
+            artifact_name: bundle-windows
+            bundle_glob: src-tauri/target/release/bundle/**/*
           - platform: macos-latest
             args: '--target x86_64-apple-darwin'
+            artifact_name: bundle-macos-x86_64
+            bundle_glob: src-tauri/target/x86_64-apple-darwin/release/bundle/**/*
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
+            artifact_name: bundle-macos-aarch64
+            bundle_glob: src-tauri/target/aarch64-apple-darwin/release/bundle/**/*
 
     runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: pnpm
@@ -75,28 +83,38 @@ jobs:
       - name: Publish hygiene check
         run: pnpm run check:publish
 
-      - name: Set Tauri CLI path (Unix)
-        if: runner.os != 'Windows'
-        run: echo "TAURI_SCRIPT=${GITHUB_WORKSPACE}/node_modules/.bin/tauri" >> "$GITHUB_ENV"
+      - name: Build Tauri bundles
+        run: pnpm tauri build ${{ matrix.args }}
 
-      - name: Set Tauri CLI path (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: echo "TAURI_SCRIPT=${env:GITHUB_WORKSPACE}\node_modules\.bin\tauri.CMD" >> $env:GITHUB_ENV
-
-      - name: Build Tauri bundles and create release
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload bundle artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: pot-withPDF ${{ github.ref_name }}
-          releaseBody: |
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.bundle_glob }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-release:
+    needs: build-bundles
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download bundle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bundle-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: pot-withPDF ${{ github.ref_name }}
+          body: |
             Automated build for pot-withPDF.
 
             This project is an unofficial fork of pot-app/pot-desktop.
-          releaseDraft: false
+          files: release-assets/**/*
+          draft: false
           prerelease: false
-          uploadUpdaterJson: false
-          tauriScript: ${{ env.TAURI_SCRIPT }}
-          args: ${{ matrix.args }}
