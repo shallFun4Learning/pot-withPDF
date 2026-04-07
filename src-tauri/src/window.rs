@@ -1,10 +1,7 @@
-use std::fs;
-
 use crate::config::get;
 use crate::config::set;
 use crate::StringWrapper;
 use crate::APP;
-use dirs::cache_dir;
 use log::{info, warn};
 use tauri::Manager;
 use tauri::Monitor;
@@ -113,6 +110,48 @@ fn build_window(label: &str, title: &str) -> (Window, bool) {
     }
 }
 
+fn build_document_window(label: &str, title: &str) -> (Window, bool) {
+    use mouse_position::mouse_position::{Mouse, Position};
+
+    let mouse_position = match Mouse::get_mouse_position() {
+        Mouse::Position { x, y } => Position { x, y },
+        Mouse::Error => Position { x: 0, y: 0 },
+    };
+    let current_monitor = get_current_monitor(mouse_position.x, mouse_position.y);
+    let position = current_monitor.position();
+
+    let app_handle = APP.get().unwrap();
+    match app_handle.get_window(label) {
+        Some(v) => {
+            v.show().unwrap_or_default();
+            v.set_focus().unwrap_or_default();
+            (v, true)
+        }
+        None => {
+            let builder = tauri::WindowBuilder::new(
+                app_handle,
+                label,
+                tauri::WindowUrl::App("index.html".into()),
+            )
+            .position(position.x.into(), position.y.into())
+            .focused(true)
+            .title(title)
+            .resizable(true)
+            .visible(false);
+
+            #[cfg(target_os = "macos")]
+            let builder = builder
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true);
+
+            let window = builder.build().unwrap();
+            #[cfg(not(target_os = "linux"))]
+            set_shadow(&window, true).unwrap_or_default();
+            (window, false)
+        }
+    }
+}
+
 pub fn config_window() {
     let (window, _exists) = build_window("config", "Config");
     window
@@ -120,6 +159,19 @@ pub fn config_window() {
         .unwrap();
     window.set_size(tauri::LogicalSize::new(800, 600)).unwrap();
     window.center().unwrap();
+}
+
+pub fn pdf_window() {
+    let (window, exists) = build_document_window("pdf", "pot-withPDF PDF");
+    window
+        .set_min_size(Some(tauri::LogicalSize::new(1200, 800)))
+        .unwrap();
+    if !exists {
+        window.set_size(tauri::LogicalSize::new(1400, 900)).unwrap();
+        window.center().unwrap();
+    }
+    window.show().unwrap_or_default();
+    window.set_focus().unwrap_or_default();
 }
 
 fn translate_window() -> Window {

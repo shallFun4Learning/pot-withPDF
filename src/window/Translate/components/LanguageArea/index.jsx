@@ -2,14 +2,11 @@ import { Card, Button, CardFooter, Dropdown, DropdownMenu, DropdownTrigger, Drop
 import { useTranslation } from 'react-i18next';
 import { BiTransferAlt } from 'react-icons/bi';
 import React, { useEffect } from 'react';
-import { atom, useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 
 import { languageList } from '../../../../utils/language';
-import { detectLanguageAtom } from '../SourceArea';
 import { useConfig } from '../../../../hooks';
-
-export const sourceLanguageAtom = atom();
-export const targetLanguageAtom = atom();
+import { detectLanguageAtom, sourceLanguageAtom, targetLanguageAtom } from '../../state';
 
 export default function LanguageArea() {
     const [rememberLanguage] = useConfig('translate_remember_language', false);
@@ -90,7 +87,7 @@ export default function LanguageArea() {
                                     if (targetLanguage === translateSecondLanguage) {
                                         setTargetLanguage(translateTargetLanguage);
                                     } else {
-                                        setTargetLanguage(secondLanguage);
+                                        setTargetLanguage(translateSecondLanguage);
                                     }
                                 }
                             }

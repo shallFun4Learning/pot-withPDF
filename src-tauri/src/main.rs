@@ -8,6 +8,7 @@ mod config;
 mod error;
 mod hotkey;
 mod lang_detect;
+mod pdf;
 mod screenshot;
 mod server;
 mod system_ocr;
@@ -23,6 +24,7 @@ use hotkey::*;
 use lang_detect::*;
 use log::info;
 use once_cell::sync::OnceCell;
+use pdf::*;
 use screenshot::screenshot;
 use server::*;
 use std::sync::Mutex;
@@ -33,6 +35,7 @@ use tauri_plugin_log::LogTarget;
 use tray::*;
 use updater::check_update;
 use window::config_window;
+use window::pdf_window;
 use window::updater_window;
 
 // Global AppHandle
@@ -78,8 +81,19 @@ fn main() {
             // Init Config
             info!("Init Config Store");
             init_config(app);
+            let start_window = std::env::var("POT_WITHPDF_START_WINDOW").ok();
+            if let Ok(path) = std::env::var("POT_WITHPDF_START_PDF_PATH") {
+                if !path.trim().is_empty() {
+                    set("pdf_startup_path", path);
+                }
+            }
+            if let Ok(mode) = std::env::var("POT_WITHPDF_START_PDF_MODE") {
+                if !mode.trim().is_empty() {
+                    set("pdf_startup_mode", mode);
+                }
+            }
             // Check First Run
-            if is_first_run() {
+            if is_first_run() && start_window.is_none() {
                 // Open Config Window
                 info!("First Run, opening config window");
                 config_window();
@@ -101,7 +115,10 @@ fn main() {
             }
             match get("proxy_enable") {
                 Some(v) => {
-                    if v.as_bool().unwrap() && get("proxy_host").map_or(false, |host| !host.as_str().unwrap().is_empty()) {
+                    if v.as_bool().unwrap()
+                        && get("proxy_host")
+                            .map_or(false, |host| !host.as_str().unwrap().is_empty())
+                    {
                         let _ = set_proxy();
                     }
                 }
@@ -125,6 +142,14 @@ fn main() {
                 clipboard_monitor.to_string(),
             )));
             start_clipboard_monitor(app.handle());
+            if let Some(window) = start_window {
+                match window.as_str() {
+                    "pdf" => pdf_window(),
+                    "config" => config_window(),
+                    "updater" => updater_window(),
+                    _ => {}
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -143,6 +168,9 @@ fn main() {
             updater_window,
             screenshot,
             lang_detect,
+            read_pdf_file,
+            write_pdf_file,
+            write_text_file,
             webdav,
             local,
             install_plugin,

@@ -4,6 +4,7 @@ use crate::window::config_window;
 use crate::window::input_translate;
 use crate::window::ocr_recognize;
 use crate::window::ocr_translate;
+use crate::window::pdf_window;
 use crate::window::updater_window;
 use log::info;
 use tauri::CustomMenuItem;
@@ -101,6 +102,7 @@ pub fn tray_event_handler<'a>(app: &'a AppHandle, event: SystemTrayEvent) {
         #[cfg(target_os = "windows")]
         SystemTrayEvent::LeftClick { .. } => on_tray_click(),
         SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+            "open_pdf" => on_open_pdf_click(),
             "input_translate" => on_input_translate_click(),
             "copy_source" => on_auto_copy_click(app, "source"),
             "clipboard_monitor" => on_clipboard_monitor_click(app),
@@ -131,12 +133,16 @@ fn on_tray_click() {
     };
     match event.as_str() {
         "config" => config_window(),
+        "open_pdf" => pdf_window(),
         "translate" => input_translate(),
         "ocr_recognize" => ocr_recognize(),
         "ocr_translate" => ocr_translate(),
         "disable" => {}
         _ => config_window(),
     }
+}
+fn on_open_pdf_click() {
+    pdf_window();
 }
 fn on_input_translate_click() {
     input_translate();
@@ -205,6 +211,7 @@ fn on_quit_click(app: &AppHandle) {
 
 fn tray_menu_en() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "Input Translate");
+    let open_pdf = CustomMenuItem::new("open_pdf", "Open PDF");
     let copy_source = CustomMenuItem::new("copy_source", "Source");
     let copy_target = CustomMenuItem::new("copy_target", "Target");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "Clipboard Monitor");
@@ -219,6 +226,7 @@ fn tray_menu_en() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "Quit");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "Auto Copy",
@@ -243,6 +251,7 @@ fn tray_menu_en() -> tauri::SystemTrayMenu {
 
 fn tray_menu_zh_cn() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "输入翻译");
+    let open_pdf = CustomMenuItem::new("open_pdf", "打开 PDF");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "监听剪切板");
     let copy_source = CustomMenuItem::new("copy_source", "原文");
     let copy_target = CustomMenuItem::new("copy_target", "译文");
@@ -258,6 +267,7 @@ fn tray_menu_zh_cn() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "退出");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "自动复制",
@@ -282,6 +292,7 @@ fn tray_menu_zh_cn() -> tauri::SystemTrayMenu {
 
 fn tray_menu_zh_tw() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "輸入翻譯");
+    let open_pdf = CustomMenuItem::new("open_pdf", "打開 PDF");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "偵聽剪貼簿");
     let copy_source = CustomMenuItem::new("copy_source", "原文");
     let copy_target = CustomMenuItem::new("copy_target", "譯文");
@@ -297,6 +308,7 @@ fn tray_menu_zh_tw() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "退出");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "自動複製",
@@ -321,6 +333,7 @@ fn tray_menu_zh_tw() -> tauri::SystemTrayMenu {
 
 fn tray_menu_ja() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "翻訳を入力");
+    let open_pdf = CustomMenuItem::new("open_pdf", "PDF を開く");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "クリップボードを監視する");
     let copy_source = CustomMenuItem::new("copy_source", "原文");
     let copy_target = CustomMenuItem::new("copy_target", "訳文");
@@ -336,6 +349,7 @@ fn tray_menu_ja() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "退出する");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "自動コピー",
@@ -360,6 +374,7 @@ fn tray_menu_ja() -> tauri::SystemTrayMenu {
 
 fn tray_menu_ko() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "입력 번역");
+    let open_pdf = CustomMenuItem::new("open_pdf", "PDF 열기");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "감청 전단판");
     let copy_source = CustomMenuItem::new("copy_source", "원문");
     let copy_target = CustomMenuItem::new("copy_target", "번역문");
@@ -375,6 +390,7 @@ fn tray_menu_ko() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "퇴출");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "자동 복사",
@@ -399,6 +415,7 @@ fn tray_menu_ko() -> tauri::SystemTrayMenu {
 
 fn tray_menu_fr() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "Traduction d'entrée");
+    let open_pdf = CustomMenuItem::new("open_pdf", "Ouvrir PDF");
     let clipboard_monitor =
         CustomMenuItem::new("clipboard_monitor", "Surveiller le presse-papiers");
     let copy_source = CustomMenuItem::new("copy_source", "Source");
@@ -415,6 +432,7 @@ fn tray_menu_fr() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "Quitter");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "Copier automatiquement",
@@ -438,6 +456,7 @@ fn tray_menu_fr() -> tauri::SystemTrayMenu {
 }
 fn tray_menu_de() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "Eingabeübersetzung");
+    let open_pdf = CustomMenuItem::new("open_pdf", "PDF öffnen");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "Zwischenablage überwachen");
     let copy_source = CustomMenuItem::new("copy_source", "Quelle");
     let copy_target = CustomMenuItem::new("copy_target", "Ziel");
@@ -453,6 +472,7 @@ fn tray_menu_de() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "Beenden");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "Automatisch kopieren",
@@ -477,6 +497,7 @@ fn tray_menu_de() -> tauri::SystemTrayMenu {
 
 fn tray_menu_ru() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "Ввод перевода");
+    let open_pdf = CustomMenuItem::new("open_pdf", "Открыть PDF");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "Следить за буфером обмена");
     let copy_source = CustomMenuItem::new("copy_source", "Источник");
     let copy_target = CustomMenuItem::new("copy_target", "Цель");
@@ -492,6 +513,7 @@ fn tray_menu_ru() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "Выход");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "Автоматическое копирование",
@@ -516,6 +538,7 @@ fn tray_menu_ru() -> tauri::SystemTrayMenu {
 
 fn tray_menu_fa() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "متن");
+    let open_pdf = CustomMenuItem::new("open_pdf", "باز کردن PDF");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "گوش دادن به تخته برش");
     let copy_source = CustomMenuItem::new("copy_source", "منبع");
     let copy_target = CustomMenuItem::new("copy_target", "هدف");
@@ -531,6 +554,7 @@ fn tray_menu_fa() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "خروج");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "کپی خودکار",
@@ -555,6 +579,7 @@ fn tray_menu_fa() -> tauri::SystemTrayMenu {
 
 fn tray_menu_pt_br() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "Traduzir Entrada");
+    let open_pdf = CustomMenuItem::new("open_pdf", "Abrir PDF");
     let clipboard_monitor =
         CustomMenuItem::new("clipboard_monitor", "Monitorando a área de transferência");
     let copy_source = CustomMenuItem::new("copy_source", "Origem");
@@ -571,6 +596,7 @@ fn tray_menu_pt_br() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "Sair");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "Copiar Automaticamente",
@@ -595,6 +621,7 @@ fn tray_menu_pt_br() -> tauri::SystemTrayMenu {
 
 fn tray_menu_uk() -> tauri::SystemTrayMenu {
     let input_translate = CustomMenuItem::new("input_translate", "Введення перекладу");
+    let open_pdf = CustomMenuItem::new("open_pdf", "Відкрити PDF");
     let clipboard_monitor = CustomMenuItem::new("clipboard_monitor", "Стежити за буфером обміну");
     let copy_source = CustomMenuItem::new("copy_source", "Джерело");
     let copy_target = CustomMenuItem::new("copy_target", "Мета");
@@ -610,6 +637,7 @@ fn tray_menu_uk() -> tauri::SystemTrayMenu {
     let quit = CustomMenuItem::new("quit", "Вихід");
     SystemTrayMenu::new()
         .add_item(input_translate)
+        .add_item(open_pdf)
         .add_item(clipboard_monitor)
         .add_submenu(SystemTraySubmenu::new(
             "Автоматичне копіювання",

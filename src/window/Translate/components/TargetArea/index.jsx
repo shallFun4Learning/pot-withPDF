@@ -32,12 +32,11 @@ import { useSpring, animated } from '@react-spring/web';
 import useMeasure from 'react-use-measure';
 
 import * as builtinCollectionServices from '../../../../services/collection';
-import { sourceLanguageAtom, targetLanguageAtom } from '../LanguageArea';
 import { useConfig, useToastStyle, useVoice } from '../../../../hooks';
-import { sourceTextAtom, detectLanguageAtom } from '../SourceArea';
 import { invoke_plugin } from '../../../../utils/invoke_plugin';
 import * as builtinServices from '../../../../services/translate';
 import * as builtinTtsServices from '../../../../services/tts';
+import { sourceLanguageAtom, targetLanguageAtom, sourceTextAtom, detectLanguageAtom } from '../../state';
 
 import { info, error as logError } from 'tauri-plugin-log-api';
 import {
@@ -52,7 +51,7 @@ import {
 let translateID = [];
 
 export default function TargetArea(props) {
-    const { index, name, translateServiceInstanceList, pluginList, serviceInstanceConfigMap, ...drag } = props;
+    const { index, name, translateServiceInstanceList, pluginList, serviceInstanceConfigMap, onResultChange, ...drag } = props;
 
     const [currentTranslateServiceInstanceKey, setCurrentTranslateServiceInstanceKey] = useState(name);
     function getInstanceName(instanceKey, serviceNameSupplier) {
@@ -91,6 +90,15 @@ export default function TargetArea(props) {
             logError(`[${currentTranslateServiceInstanceKey}]happened error: ` + error);
         }
     }, [error]);
+
+    useEffect(() => {
+        onResultChange?.({
+            serviceInstanceKey: currentTranslateServiceInstanceKey,
+            result,
+            error,
+            isLoading,
+        });
+    }, [currentTranslateServiceInstanceKey, error, isLoading, onResultChange, result]);
 
     // listen to translation
     useEffect(() => {

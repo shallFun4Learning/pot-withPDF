@@ -11,6 +11,15 @@ node_modules
 dist
 dist-ssr
 *.local
+playwright-report
+test-results
+src-tauri/target
+src-tauri/crates/**/target
+.cache
+output
+docs/*product-review*
+*-preview.html
+src/*-preview.jsx
 
 # Editor directories and files
 .idea
@@ -20,3 +29,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Local secrets / credentials
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*.mobileprovision
+id_rsa
+id_ed25519

@@ -10,14 +10,17 @@ import Screenshot from './window/Screenshot';
 import Translate from './window/Translate';
 import Recognize from './window/Recognize';
 import Updater from './window/Updater';
+import PdfWindow from './window/Pdf';
 import { store } from './utils/store';
 import Config from './window/Config';
 import { useConfig } from './hooks';
+import { getWindowLabel } from './utils/windowLabel';
 import './style.css';
 import './i18n';
 
 const windowMap = {
     translate: <Translate />,
+    pdf: <PdfWindow />,
     screenshot: <Screenshot />,
     recognize: <Recognize />,
     config: <Config />,
@@ -33,6 +36,7 @@ export default function App() {
     const [appFontSize] = useConfig('app_font_size', 16);
     const { setTheme } = useTheme();
     const { i18n } = useTranslation();
+    const windowLabel = getWindowLabel();
 
     useEffect(() => {
         store.load();
@@ -51,7 +55,7 @@ export default function App() {
                 if (e.key.startsWith('F') && e.key.length > 1) {
                     e.preventDefault();
                 }
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' && windowLabel !== 'pdf') {
                     await appWindow.close();
                 }
             });
@@ -64,12 +68,12 @@ export default function App() {
                 if (e.key.startsWith('F') && e.key.length > 1) {
                     e.preventDefault();
                 }
-                if (e.key === 'Escape') {
+                if (e.key === 'Escape' && windowLabel !== 'pdf') {
                     await appWindow.close();
                 }
             });
         }
-    }, [devMode]);
+    }, [devMode, windowLabel]);
 
     useEffect(() => {
         if (appTheme !== null) {
@@ -113,5 +117,5 @@ export default function App() {
         }
     }, [appFont, appFallbackFont, appFontSize]);
 
-    return <BrowserRouter>{windowMap[appWindow.label]}</BrowserRouter>;
+    return <BrowserRouter>{windowMap[windowLabel]}</BrowserRouter>;
 }

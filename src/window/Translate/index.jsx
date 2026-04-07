@@ -1,8 +1,5 @@
-import { readDir, BaseDirectory, readTextFile, exists } from '@tauri-apps/api/fs';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import { appWindow, currentMonitor } from '@tauri-apps/api/window';
-import { appConfigDir, join } from '@tauri-apps/api/path';
-import { convertFileSrc } from '@tauri-apps/api/tauri';
 import { Spacer, Button } from '@nextui-org/react';
 import { AiFillCloseCircle } from 'react-icons/ai';
 import React, { useState, useEffect } from 'react';
@@ -16,6 +13,7 @@ import { osType } from '../../utils/env';
 import { useConfig } from '../../hooks';
 import { store } from '../../utils/store';
 import { info } from 'tauri-plugin-log-api';
+import { loadPluginList, loadServiceInstanceConfigMap } from '../shared/serviceRegistry';
 
 let blurTimeout = null;
 let resizeTimeout = null;
@@ -162,55 +160,27 @@ export default function Translate() {
         }
     }, [rememberWindowSize]);
 
-    const loadPluginList = async () => {
-        const serviceTypeList = ['translate', 'tts', 'recognize', 'collection'];
-        let temp = {};
-        for (const serviceType of serviceTypeList) {
-            temp[serviceType] = {};
-            if (await exists(`plugins/${serviceType}`, { dir: BaseDirectory.AppConfig })) {
-                const plugins = await readDir(`plugins/${serviceType}`, { dir: BaseDirectory.AppConfig });
-                for (const plugin of plugins) {
-                    const infoStr = await readTextFile(`plugins/${serviceType}/${plugin.name}/info.json`, {
-                        dir: BaseDirectory.AppConfig,
-                    });
-                    let pluginInfo = JSON.parse(infoStr);
-                    if ('icon' in pluginInfo) {
-                        const appConfigDirPath = await appConfigDir();
-                        const iconPath = await join(
-                            appConfigDirPath,
-                            `/plugins/${serviceType}/${plugin.name}/${pluginInfo.icon}`
-                        );
-                        pluginInfo.icon = convertFileSrc(iconPath);
-                    }
-                    temp[serviceType][plugin.name] = pluginInfo;
-                }
-            }
-        }
-        setPluginList({ ...temp });
+    const reloadPluginList = async () => {
+        setPluginList(await loadPluginList());
     };
 
     useEffect(() => {
-        loadPluginList();
+        reloadPluginList();
         if (!unlisten) {
-            unlisten = listen('reload_plugin_list', loadPluginList);
+            unlisten = listen('reload_plugin_list', reloadPluginList);
         }
     }, []);
 
-    const loadServiceInstanceConfigMap = async () => {
-        const config = {};
-        for (const serviceInstanceKey of translateServiceInstanceList) {
-            config[serviceInstanceKey] = (await store.get(serviceInstanceKey)) ?? {};
-        }
-        for (const serviceInstanceKey of recognizeServiceInstanceList) {
-            config[serviceInstanceKey] = (await store.get(serviceInstanceKey)) ?? {};
-        }
-        for (const serviceInstanceKey of ttsServiceInstanceList) {
-            config[serviceInstanceKey] = (await store.get(serviceInstanceKey)) ?? {};
-        }
-        for (const serviceInstanceKey of collectionServiceInstanceList) {
-            config[serviceInstanceKey] = (await store.get(serviceInstanceKey)) ?? {};
-        }
-        setServiceInstanceConfigMap({ ...config });
+    const reloadServiceInstanceConfigMap = async () => {
+        setServiceInstanceConfigMap(
+            await loadServiceInstanceConfigMap({
+                store,
+                translateServiceInstanceList,
+                recognizeServiceInstanceList,
+                ttsServiceInstanceList,
+                collectionServiceInstanceList,
+            })
+        );
     };
     useEffect(() => {
         if (
@@ -219,7 +189,7 @@ export default function Translate() {
             ttsServiceInstanceList !== null &&
             collectionServiceInstanceList !== null
         ) {
-            loadServiceInstanceConfigMap();
+            reloadServiceInstanceConfigMap();
         }
     }, [
         translateServiceInstanceList,

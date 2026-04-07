@@ -1,0 +1,8 @@
+[package]
+name = "pot_withpdf_pdf_io"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base64 = "0.22"
+thiserror = "1.0"
