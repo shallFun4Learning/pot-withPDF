@@ -169,10 +169,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          cat > release-notes.md <<'NOTES'
-          Automated build for pot-withPDF.
+          cat > release-notes.md <<NOTES
+          pot-withPDF ${TAG_NAME}
 
-          This project is an unofficial fork of pot-app/pot-desktop.
+          正在整理安装包与下载信息，请稍候刷新此页面。
           NOTES
 
           if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
@@ -226,22 +226,10 @@ jobs:
           fi
 
           mapfile -t uploaded_asset_names < <(gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets[].name')
-
-          cat > release-notes.md <<'NOTES'
-          Automated build for pot-withPDF.
-
-          This project is an unofficial fork of pot-app/pot-desktop.
-
-          ## Downloads
-          NOTES
-
-          for asset_name in "${uploaded_asset_names[@]}"; do
-            printf -- '- [%s](https://github.com/%s/releases/download/%s/%s)\n' \
-              "$asset_name" \
-              "$GH_REPO" \
-              "$TAG_NAME" \
-              "$asset_name" >> release-notes.md
-          done
+          node scripts/generate-release-notes.mjs \
+            --repo "$GH_REPO" \
+            --tag "$TAG_NAME" \
+            "${uploaded_asset_names[@]}" > release-notes.md
 
           gh release edit "$TAG_NAME" --repo "$GH_REPO" --notes-file release-notes.md
 

@@ -1,0 +1,70 @@
+name: Release Maintenance
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - .github/workflows/release-maintenance.yml
+      - .github/workflows/release.yml
+      - scripts/generate-release-notes.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup-and-polish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CURRENT_TAG: v3.0.9
+      STALE_TAGS: v3.0.7 v3.0.8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Delete stale releases and tags
+        shell: bash
+        run: |
+          for tag in $STALE_TAGS; do
+            if gh release view "$tag" --repo "$GH_REPO" >/dev/null 2>&1; then
+              echo "Deleting stale release and tag: $tag"
+              gh release delete "$tag" --repo "$GH_REPO" --cleanup-tag --yes
+              continue
+            fi
+
+            if gh api "repos/$GH_REPO/git/ref/tags/$tag" >/dev/null 2>&1; then
+              echo "Deleting stale tag without release: $tag"
+              gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$tag"
+            else
+              echo "Nothing to delete for $tag"
+            fi
+          done
+
+      - name: Refresh current release notes
+        shell: bash
+        run: |
+          mapfile -t assets < <(gh release view "$CURRENT_TAG" --repo "$GH_REPO" --json assets --jq '.assets[].name')
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "::error::No assets found on $CURRENT_TAG; aborting maintenance update" >&2
+            exit 1
+          fi
+
+          node scripts/generate-release-notes.mjs \
+            --repo "$GH_REPO" \
+            --tag "$CURRENT_TAG" \
+            "${assets[@]}" > release-notes.md
+
+          gh release edit "$CURRENT_TAG" \
+            --repo "$GH_REPO" \
+            --title "pot-withPDF $CURRENT_TAG" \
+            --notes-file release-notes.md
