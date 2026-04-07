@@ -76,6 +76,15 @@ jobs:
       - name: Publish hygiene check
         run: pnpm run check:publish
 
+      - name: Set Tauri CLI path (Unix)
+        if: runner.os != 'Windows'
+        run: echo "TAURI_SCRIPT=${GITHUB_WORKSPACE}/node_modules/.bin/tauri" >> "$GITHUB_ENV"
+
+      - name: Set Tauri CLI path (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: echo "TAURI_SCRIPT=${env:GITHUB_WORKSPACE}\node_modules\.bin\tauri.CMD" >> $env:GITHUB_ENV
+
       - name: Build Tauri bundles and create release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -90,5 +99,5 @@ jobs:
           releaseDraft: false
           prerelease: false
           uploadUpdaterJson: false
-          tauriScript: pnpm tauri
+          tauriScript: ${{ env.TAURI_SCRIPT }}
           args: ${{ matrix.args }}
