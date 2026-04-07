@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -100,16 +104,33 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: pot-withPDF ${{ github.ref_name }}
-          body: |
-            Automated build for pot-withPDF.
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          Automated build for pot-withPDF.
 
-            This project is an unofficial fork of pot-app/pot-desktop.
-          files: |
-            release-assets/**/*
-          draft: false
-          prerelease: false
+          This project is an unofficial fork of pot-app/pot-desktop.
+          NOTES
+
+          if gh release view "$TAG_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release edit "$TAG_NAME" --repo "$GH_REPO" --title "pot-withPDF $TAG_NAME" --notes-file release-notes.md
+          else
+            gh release create "$TAG_NAME" --repo "$GH_REPO" --title "pot-withPDF $TAG_NAME" --notes-file release-notes.md
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          mapfile -t files < <(find release-assets -type f | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No release assets found" >&2
+            exit 1
+          fi
+          gh release upload "$TAG_NAME" --repo "$GH_REPO" "${files[@]}" --clobber
