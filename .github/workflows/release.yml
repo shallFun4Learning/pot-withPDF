@@ -21,13 +21,10 @@ jobs:
         include:
           - platform: ubuntu-24.04
             artifact_name: bundle-ubuntu
-            bundle_glob: src-tauri/target/release/bundle/**/*
           - platform: windows-latest
             artifact_name: bundle-windows
-            bundle_glob: src-tauri/target/release/bundle/**/*
           - platform: macos-latest
             artifact_name: bundle-macos
-            bundle_glob: src-tauri/target/release/bundle/**/*
 
     runs-on: ${{ matrix.platform }}
 
@@ -84,11 +81,73 @@ jobs:
         if: runner.os != 'Linux'
         run: pnpm tauri build
 
+      - name: Collect distributable bundles
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import sys
+
+          root = Path("src-tauri/target/release/bundle")
+          if not root.exists():
+              print("Bundle directory does not exist", file=sys.stderr)
+              sys.exit(1)
+
+          allowed_suffixes = (
+              ".AppImage",
+              ".deb",
+              ".rpm",
+              ".dmg",
+              ".msi",
+              ".exe",
+              ".zip",
+              ".tar.gz",
+              ".pkg",
+          )
+          excluded_names = {"control.tar.gz", "data.tar.gz", "debian-binary"}
+          excluded_fragments = (".app/", "AppDir/")
+
+          candidates = []
+          for path in root.rglob("*"):
+              if not path.is_file():
+                  continue
+
+              rel = path.as_posix()
+              if any(fragment in rel for fragment in excluded_fragments):
+                  continue
+              if path.name in excluded_names:
+                  continue
+              if rel.endswith(allowed_suffixes):
+                  candidates.append(path)
+
+          if not candidates:
+              print("No distributable bundles found", file=sys.stderr)
+              sys.exit(1)
+
+          seen = {}
+          for path in candidates:
+              name = path.name
+              if name in seen:
+                  print(f"Duplicate release asset name detected: {name}", file=sys.stderr)
+                  print(f" - {seen[name]}", file=sys.stderr)
+                  print(f" - {path}", file=sys.stderr)
+                  sys.exit(1)
+              seen[name] = path
+
+          out_dir = Path("release-dist")
+          out_dir.mkdir(exist_ok=True)
+          for path in sorted(candidates):
+              target = out_dir / path.name
+              shutil.copy2(path, target)
+              print(target.as_posix())
+          PY
+
       - name: Upload bundle artifacts
         uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.bundle_glob }}
+          path: release-dist/*
           if-no-files-found: error
           retention-days: 7
 
