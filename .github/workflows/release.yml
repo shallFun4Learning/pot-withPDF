@@ -193,6 +193,7 @@ jobs:
           import os
           from pathlib import Path
           import sys
+          import urllib.error
           import urllib.parse
           import urllib.request
 
@@ -212,13 +213,33 @@ jobs:
               if content_type:
                   request_headers["Content-Type"] = content_type
               request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
-              with urllib.request.urlopen(request) as response:
-                  return response.read()
+              try:
+                  with urllib.request.urlopen(request) as response:
+                      return response.read()
+              except urllib.error.HTTPError as error:
+                  body = error.read().decode("utf-8", "ignore")
+                  print(f"::error::HTTP {error.code} for {method} {url}", file=sys.stderr)
+                  if body:
+                      print(f"::error::{body}", file=sys.stderr)
+                  raise
+              except Exception as error:  # pragma: no cover - workflow diagnostics
+                  print(f"::error::{type(error).__name__}: {error}", file=sys.stderr)
+                  raise
 
           files = sorted(path for path in Path("release-assets").rglob("*") if path.is_file())
           if not files:
               print("No release assets found after downloading bundle artifacts", file=sys.stderr)
               sys.exit(1)
+
+          file_names = [path.name for path in files]
+          duplicates = sorted({name for name in file_names if file_names.count(name) > 1})
+          if duplicates:
+              print(f"::error::Duplicate release asset names detected: {', '.join(duplicates)}", file=sys.stderr)
+              sys.exit(1)
+
+          print("release asset candidates:")
+          for path in files:
+              print(f" - {path.name}")
 
           release_bytes = api(
               f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
