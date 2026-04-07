@@ -1,53 +1,4 @@
-import { execFileSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
-
-function writeHighlightedFixture() {
-    execFileSync(
-        'python',
-        [
-            '-c',
-            `
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from pypdf import PdfReader, PdfWriter
-from pypdf.annotations import Highlight
-from pypdf.generic import ArrayObject, FloatObject
-
-source_path = 'public/test-assets/highlighted-sample-generated-source.pdf'
-output_path = 'public/test-assets/highlighted-sample-generated.pdf'
-
-c = canvas.Canvas(source_path, pagesize=letter)
-c.setFont('Helvetica', 24)
-c.drawString(100, 700, 'Hello PDF annotation list test')
-c.save()
-
-reader = PdfReader(source_path)
-writer = PdfWriter()
-for page in reader.pages:
-    writer.add_page(page)
-
-quad_points = ArrayObject([
-    FloatObject(100), FloatObject(724),
-    FloatObject(165), FloatObject(724),
-    FloatObject(100), FloatObject(694),
-    FloatObject(165), FloatObject(694),
-])
-writer.add_annotation(
-    0,
-    Highlight(
-        rect=(98, 694, 165, 724),
-        quad_points=quad_points,
-        highlight_color='ffe066',
-    ),
-)
-
-with open(output_path, 'wb') as file:
-    writer.write(file)
-            `,
-        ],
-        { cwd: process.cwd() }
-    );
-}
 
 test('selecting PDF text updates sidebar and save returns bytes', async ({ page }) => {
     await page.goto('/pdf-test.html');
@@ -103,9 +54,7 @@ test('leaving highlight mode restores selection tracking', async ({ page }) => {
 });
 
 test('saved highlights appear in the list and can be deleted', async ({ page }) => {
-    writeHighlightedFixture();
-
-    await page.goto('/pdf-test.html?doc=/test-assets/highlighted-sample-generated.pdf');
+    await page.goto('/pdf-test.html?doc=/test-assets/highlighted-sample.pdf');
     await expect(page.getByTestId('annotation-count')).toHaveText('1');
     await expect(page.getByTestId('annotation-item')).toBeVisible();
 
