@@ -55,13 +55,19 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: Install Playwright Chromium
+              if: runner.os == 'Linux'
               run: pnpm exec playwright install chromium
 
             - name: Publish hygiene check
               run: pnpm run check:publish
 
-            - name: Frontend tests
+            - name: Frontend tests (Ubuntu with Playwright)
+              if: runner.os == 'Linux'
               run: pnpm test
+
+            - name: Frontend unit tests (macOS/Windows)
+              if: runner.os != 'Linux'
+              run: pnpm test:unit
 
             - name: Frontend build smoke
               run: pnpm build

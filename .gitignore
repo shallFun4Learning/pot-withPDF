@@ -38,3 +38,4 @@ src/*-preview.jsx
 *.mobileprovision
 id_rsa
 id_ed25519
+public/test-assets/*generated*.pdf

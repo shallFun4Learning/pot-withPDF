@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,21 +16,14 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-24.04
-            args: ''
             artifact_name: bundle-ubuntu
             bundle_glob: src-tauri/target/release/bundle/**/*
           - platform: windows-latest
-            args: ''
             artifact_name: bundle-windows
             bundle_glob: src-tauri/target/release/bundle/**/*
           - platform: macos-latest
-            args: '--target x86_64-apple-darwin'
-            artifact_name: bundle-macos-x86_64
-            bundle_glob: src-tauri/target/x86_64-apple-darwin/release/bundle/**/*
-          - platform: macos-latest
-            args: '--target aarch64-apple-darwin'
-            artifact_name: bundle-macos-aarch64
-            bundle_glob: src-tauri/target/aarch64-apple-darwin/release/bundle/**/*
+            artifact_name: bundle-macos
+            bundle_glob: src-tauri/target/release/bundle/**/*
 
     runs-on: ${{ matrix.platform }}
 
@@ -49,10 +43,6 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Add macOS targets
-        if: runner.os == 'macOS'
-        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
 
       - name: Restore Rust cache
         uses: swatinem/rust-cache@v2
@@ -82,11 +72,16 @@ jobs:
       - name: Publish hygiene check
         run: pnpm run check:publish
 
-      - name: Build Tauri bundles
-        run: pnpm tauri build ${{ matrix.args }}
+      - name: Build Tauri bundles (Linux)
+        if: runner.os == 'Linux'
+        run: ./scripts/tauri-build-linux.sh
+
+      - name: Build Tauri bundles (macOS/Windows)
+        if: runner.os != 'Linux'
+        run: pnpm tauri build
 
       - name: Upload bundle artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.bundle_glob }}
@@ -99,7 +94,7 @@ jobs:
 
     steps:
       - name: Download bundle artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: bundle-*
           path: release-assets
@@ -114,6 +109,7 @@ jobs:
             Automated build for pot-withPDF.
 
             This project is an unofficial fork of pot-app/pot-desktop.
-          files: release-assets/**/*
+          files: |
+            release-assets/**/*
           draft: false
           prerelease: false

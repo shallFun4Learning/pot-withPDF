@@ -13,8 +13,8 @@ from pypdf import PdfReader, PdfWriter
 from pypdf.annotations import Highlight
 from pypdf.generic import ArrayObject, FloatObject
 
-source_path = 'public/test-assets/highlighted-sample-source.pdf'
-output_path = 'public/test-assets/highlighted-sample.pdf'
+source_path = 'public/test-assets/highlighted-sample-generated-source.pdf'
+output_path = 'public/test-assets/highlighted-sample-generated.pdf'
 
 c = canvas.Canvas(source_path, pagesize=letter)
 c.setFont('Helvetica', 24)
@@ -105,7 +105,7 @@ test('leaving highlight mode restores selection tracking', async ({ page }) => {
 test('saved highlights appear in the list and can be deleted', async ({ page }) => {
     writeHighlightedFixture();
 
-    await page.goto('/pdf-test.html?doc=/test-assets/highlighted-sample.pdf');
+    await page.goto('/pdf-test.html?doc=/test-assets/highlighted-sample-generated.pdf');
     await expect(page.getByTestId('annotation-count')).toHaveText('1');
     await expect(page.getByTestId('annotation-item')).toBeVisible();
 
