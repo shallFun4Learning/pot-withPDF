@@ -193,6 +193,7 @@ jobs:
           import os
           from pathlib import Path
           import sys
+          import time
           import urllib.error
           import urllib.parse
           import urllib.request
@@ -208,7 +209,7 @@ jobs:
               "User-Agent": "pot-withPDF-release-workflow",
           }
 
-          def api(url, method="GET", data=None, content_type=None):
+          def api(url, method="GET", data=None, content_type=None, quiet_http_errors=False):
               request_headers = headers.copy()
               if content_type:
                   request_headers["Content-Type"] = content_type
@@ -217,6 +218,8 @@ jobs:
                   with urllib.request.urlopen(request) as response:
                       return response.read()
               except urllib.error.HTTPError as error:
+                  if quiet_http_errors:
+                      raise
                   body = error.read().decode("utf-8", "ignore")
                   print(f"::error::HTTP {error.code} for {method} {url}", file=sys.stderr)
                   if body:
@@ -241,10 +244,27 @@ jobs:
           for path in files:
               print(f" - {path.name}")
 
-          release_bytes = api(
-              f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
-          )
-          release = json.loads(release_bytes)
+          release_url = f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
+          release = None
+          for attempt in range(1, 16):
+              try:
+                  release_bytes = api(release_url, quiet_http_errors=True)
+                  release = json.loads(release_bytes)
+                  break
+              except urllib.error.HTTPError as error:
+                  if error.code != 404 or attempt == 15:
+                      body = error.read().decode("utf-8", "ignore")
+                      print(f"::error::HTTP {error.code} for GET {release_url}", file=sys.stderr)
+                      if body:
+                          print(f"::error::{body}", file=sys.stderr)
+                      raise
+                  print(f"release not ready yet, retrying ({attempt}/15)")
+                  time.sleep(3)
+
+          if release is None:
+              print("::error::GitHub release was not available after waiting", file=sys.stderr)
+              sys.exit(1)
+
           upload_url = release["upload_url"].split("{", 1)[0]
           existing_assets = {asset["name"]: asset["id"] for asset in release.get("assets", [])}
 
@@ -265,11 +285,16 @@ jobs:
               )
               print(f"uploaded {uploaded['name']} ({uploaded['size']} bytes)")
 
-          verify_bytes = api(
-              f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
-          )
-          verified_release = json.loads(verify_bytes)
-          uploaded_names = [asset["name"] for asset in verified_release.get("assets", [])]
+          verified_release = None
+          for attempt in range(1, 11):
+              verify_bytes = api(release_url)
+              verified_release = json.loads(verify_bytes)
+              uploaded_names = [asset["name"] for asset in verified_release.get("assets", [])]
+              if uploaded_names:
+                  break
+              time.sleep(2)
+          else:
+              uploaded_names = []
 
           if not uploaded_names:
               print("GitHub release still has no custom assets after upload", file=sys.stderr)
