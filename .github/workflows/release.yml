@@ -220,10 +220,30 @@ jobs:
           gh release upload "$TAG_NAME" --repo "$GH_REPO" "${files[@]}" --clobber
 
           asset_count="$(gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets | length')"
-          if [ "${asset_count:-0}" -eq 0 ]; then
-            echo "::error::GitHub release still has no custom assets after upload" >&2
+          if [ "${asset_count:-0}" -lt 3 ]; then
+            echo "::error::GitHub release has fewer than 3 distributable assets after upload" >&2
             exit 1
           fi
 
+          mapfile -t uploaded_asset_names < <(gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets[].name')
+
+          cat > release-notes.md <<'NOTES'
+          Automated build for pot-withPDF.
+
+          This project is an unofficial fork of pot-app/pot-desktop.
+
+          ## Downloads
+          NOTES
+
+          for asset_name in "${uploaded_asset_names[@]}"; do
+            printf -- '- [%s](https://github.com/%s/releases/download/%s/%s)\n' \
+              "$asset_name" \
+              "$GH_REPO" \
+              "$TAG_NAME" \
+              "$asset_name" >> release-notes.md
+          done
+
+          gh release edit "$TAG_NAME" --repo "$GH_REPO" --notes-file release-notes.md
+
           echo "release assets:"
-          gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets[].name'
+          printf ' - %s\n' "${uploaded_asset_names[@]}"
