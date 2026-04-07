@@ -186,10 +186,75 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG_NAME: ${{ github.ref_name }}
+        shell: bash
         run: |
-          mapfile -t files < <(find release-assets -type f | sort)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No release assets found" >&2
-            exit 1
-          fi
-          gh release upload "$TAG_NAME" --repo "$GH_REPO" "${files[@]}" --clobber
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import sys
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ["GH_TOKEN"]
+          repo = os.environ["GH_REPO"]
+          tag = os.environ["TAG_NAME"]
+
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "pot-withPDF-release-workflow",
+          }
+
+          def api(url, method="GET", data=None, content_type=None):
+              request_headers = headers.copy()
+              if content_type:
+                  request_headers["Content-Type"] = content_type
+              request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
+              with urllib.request.urlopen(request) as response:
+                  return response.read()
+
+          files = sorted(path for path in Path("release-assets").rglob("*") if path.is_file())
+          if not files:
+              print("No release assets found after downloading bundle artifacts", file=sys.stderr)
+              sys.exit(1)
+
+          release_bytes = api(
+              f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
+          )
+          release = json.loads(release_bytes)
+          upload_url = release["upload_url"].split("{", 1)[0]
+          existing_assets = {asset["name"]: asset["id"] for asset in release.get("assets", [])}
+
+          for path in files:
+              asset_name = path.name
+              if asset_name in existing_assets:
+                  api(
+                      f"https://api.github.com/repos/{repo}/releases/assets/{existing_assets[asset_name]}",
+                      method="DELETE",
+                  )
+
+              with path.open("rb") as file_handle:
+                  payload = file_handle.read()
+
+              asset_url = f"{upload_url}?name={urllib.parse.quote(asset_name)}"
+              uploaded = json.loads(
+                  api(asset_url, method="POST", data=payload, content_type="application/octet-stream")
+              )
+              print(f"uploaded {uploaded['name']} ({uploaded['size']} bytes)")
+
+          verify_bytes = api(
+              f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
+          )
+          verified_release = json.loads(verify_bytes)
+          uploaded_names = [asset["name"] for asset in verified_release.get("assets", [])]
+
+          if not uploaded_names:
+              print("GitHub release still has no custom assets after upload", file=sys.stderr)
+              sys.exit(1)
+
+          print("release assets:")
+          for name in uploaded_names:
+              print(f" - {name}")
+          PY
