@@ -188,119 +188,42 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         shell: bash
         run: |
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          import sys
-          import time
-          import urllib.error
-          import urllib.parse
-          import urllib.request
+          mapfile -t files < <(find release-assets -type f | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No release assets found after downloading bundle artifacts" >&2
+            exit 1
+          fi
 
-          token = os.environ["GH_TOKEN"]
-          repo = os.environ["GH_REPO"]
-          tag = os.environ["TAG_NAME"]
+          mapfile -t duplicate_names < <(printf '%s\n' "${files[@]##*/}" | sort | uniq -d)
+          if [ "${#duplicate_names[@]}" -gt 0 ]; then
+            echo "::error::Duplicate release asset names detected: ${duplicate_names[*]}" >&2
+            exit 1
+          fi
 
-          headers = {
-              "Authorization": f"Bearer {token}",
-              "Accept": "application/vnd.github+json",
-              "X-GitHub-Api-Version": "2022-11-28",
-              "User-Agent": "pot-withPDF-release-workflow",
-          }
+          echo "release asset candidates:"
+          printf ' - %s\n' "${files[@]##*/}"
 
-          def api(url, method="GET", data=None, content_type=None, quiet_http_errors=False):
-              request_headers = headers.copy()
-              if content_type:
-                  request_headers["Content-Type"] = content_type
-              request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
-              try:
-                  with urllib.request.urlopen(request) as response:
-                      return response.read()
-              except urllib.error.HTTPError as error:
-                  if quiet_http_errors:
-                      raise
-                  body = error.read().decode("utf-8", "ignore")
-                  print(f"::error::HTTP {error.code} for {method} {url}", file=sys.stderr)
-                  if body:
-                      print(f"::error::{body}", file=sys.stderr)
-                  raise
-              except Exception as error:  # pragma: no cover - workflow diagnostics
-                  print(f"::error::{type(error).__name__}: {error}", file=sys.stderr)
-                  raise
+          for attempt in $(seq 1 15); do
+            if gh release view "$TAG_NAME" --repo "$GH_REPO" --json uploadUrl >/tmp/release.json 2>/tmp/release.err; then
+              break
+            fi
 
-          files = sorted(path for path in Path("release-assets").rglob("*") if path.is_file())
-          if not files:
-              print("No release assets found after downloading bundle artifacts", file=sys.stderr)
-              sys.exit(1)
+            if [ "$attempt" -eq 15 ]; then
+              echo "::error::$(cat /tmp/release.err)" >&2
+              exit 1
+            fi
 
-          file_names = [path.name for path in files]
-          duplicates = sorted({name for name in file_names if file_names.count(name) > 1})
-          if duplicates:
-              print(f"::error::Duplicate release asset names detected: {', '.join(duplicates)}", file=sys.stderr)
-              sys.exit(1)
+            echo "release not ready yet, retrying ($attempt/15)"
+            sleep 3
+          done
 
-          print("release asset candidates:")
-          for path in files:
-              print(f" - {path.name}")
+          gh release upload "$TAG_NAME" --repo "$GH_REPO" "${files[@]}" --clobber
 
-          release_url = f"https://api.github.com/repos/{repo}/releases/tags/{urllib.parse.quote(tag)}"
-          release = None
-          for attempt in range(1, 16):
-              try:
-                  release_bytes = api(release_url, quiet_http_errors=True)
-                  release = json.loads(release_bytes)
-                  break
-              except urllib.error.HTTPError as error:
-                  if error.code != 404 or attempt == 15:
-                      body = error.read().decode("utf-8", "ignore")
-                      print(f"::error::HTTP {error.code} for GET {release_url}", file=sys.stderr)
-                      if body:
-                          print(f"::error::{body}", file=sys.stderr)
-                      raise
-                  print(f"release not ready yet, retrying ({attempt}/15)")
-                  time.sleep(3)
+          asset_count="$(gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets | length')"
+          if [ "${asset_count:-0}" -eq 0 ]; then
+            echo "::error::GitHub release still has no custom assets after upload" >&2
+            exit 1
+          fi
 
-          if release is None:
-              print("::error::GitHub release was not available after waiting", file=sys.stderr)
-              sys.exit(1)
-
-          upload_url = release["upload_url"].split("{", 1)[0]
-          existing_assets = {asset["name"]: asset["id"] for asset in release.get("assets", [])}
-
-          for path in files:
-              asset_name = path.name
-              if asset_name in existing_assets:
-                  api(
-                      f"https://api.github.com/repos/{repo}/releases/assets/{existing_assets[asset_name]}",
-                      method="DELETE",
-                  )
-
-              with path.open("rb") as file_handle:
-                  payload = file_handle.read()
-
-              asset_url = f"{upload_url}?name={urllib.parse.quote(asset_name)}"
-              uploaded = json.loads(
-                  api(asset_url, method="POST", data=payload, content_type="application/octet-stream")
-              )
-              print(f"uploaded {uploaded['name']} ({uploaded['size']} bytes)")
-
-          verified_release = None
-          for attempt in range(1, 11):
-              verify_bytes = api(release_url)
-              verified_release = json.loads(verify_bytes)
-              uploaded_names = [asset["name"] for asset in verified_release.get("assets", [])]
-              if uploaded_names:
-                  break
-              time.sleep(2)
-          else:
-              uploaded_names = []
-
-          if not uploaded_names:
-              print("GitHub release still has no custom assets after upload", file=sys.stderr)
-              sys.exit(1)
-
-          print("release assets:")
-          for name in uploaded_names:
-              print(f" - {name}")
-          PY
+          echo "release assets:"
+          gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets[].name'
