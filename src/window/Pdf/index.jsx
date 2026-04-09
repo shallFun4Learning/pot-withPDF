@@ -18,9 +18,19 @@ import PdfTranslateSidebar from './components/PdfTranslateSidebar';
 import PdfToolbar from './components/PdfToolbar';
 import PdfViewerPane from './components/PdfViewerPane';
 import { base64ToUint8Array, uint8ArrayToBase64 } from './utils/base64';
-import { normalizePdfCompareMode, PDF_COMPARE_MODE_DOCUMENT, PDF_COMPARE_MODE_NONE, PDF_COMPARE_MODE_TRANSLATION } from './utils/compare';
+import {
+    normalizePdfCompareMode,
+    PDF_COMPARE_MODE_DOCUMENT,
+    PDF_COMPARE_MODE_NONE,
+    PDF_COMPARE_MODE_TRANSLATION,
+} from './utils/compare';
 import { createLoadedDocumentState, markDocumentDirty, markDocumentSaved } from './utils/documentState';
-import { getAnnotationClientKey, getAnnotationDisplayNote, getDocumentAnnotationNotes, setDocumentAnnotationNote } from './utils/annotationNotes';
+import {
+    getAnnotationClientKey,
+    getAnnotationDisplayNote,
+    getDocumentAnnotationNotes,
+    setDocumentAnnotationNote,
+} from './utils/annotationNotes';
 import { createExtractsExportFileName, createExtractsMarkdown } from './utils/extractsExport';
 import { normalizeHighlightColor } from './utils/highlightPalette';
 import { createPdfDocumentFromFile, findFirstPdfFile, findFirstPdfPath, isPdfPath } from './utils/pdfFiles';
@@ -60,14 +70,14 @@ function hasDraggedFiles(dataTransfer) {
     return Array.from(dataTransfer?.types || []).includes('Files');
 }
 
-    function createEmptyViewerState() {
-        return {
-            currentPage: 0,
-            pageCount: 0,
-            scale: 1,
-            scaleValue: 'page-width',
-        };
-    }
+function createEmptyViewerState() {
+    return {
+        currentPage: 0,
+        pageCount: 0,
+        scale: 1,
+        scaleValue: 'page-width',
+    };
+}
 
 function createEmptyTranslationCompareState() {
     return {
@@ -150,6 +160,8 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
     const dragDepthRef = useRef(0);
     const loadGenerationRef = useRef(0);
     const compareLoadGenerationRef = useRef(0);
+    const primaryLoadSignatureRef = useRef({ tabId: null, data: null, path: '' });
+    const compareLoadSignatureRef = useRef({ tabId: null, data: null, path: '' });
     const workspaceRestoredRef = useRef(false);
     const syncingPrimaryScrollRef = useRef(false);
     const syncingCompareScrollRef = useRef(false);
@@ -173,8 +185,14 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
     const [compareSyncPages, setCompareSyncPages] = useState(true);
     const [translationCompareState, setTranslationCompareState] = useState(createEmptyTranslationCompareState());
     const [recentFiles, setRecentFiles, getRecentFiles] = useConfig('pdf_recent_files', []);
-    const [recentlyClosedTabs, setRecentlyClosedTabs, getRecentlyClosedTabs] = useConfig('pdf_recently_closed_tabs', []);
-    const [readingProgressMap, setReadingProgressMap, getReadingProgressMap] = useConfig('pdf_reading_progress_map', {});
+    const [recentlyClosedTabs, setRecentlyClosedTabs, getRecentlyClosedTabs] = useConfig(
+        'pdf_recently_closed_tabs',
+        []
+    );
+    const [readingProgressMap, setReadingProgressMap, getReadingProgressMap] = useConfig(
+        'pdf_reading_progress_map',
+        {}
+    );
     const [startupPdfPath, setStartupPdfPath] = useConfig('pdf_startup_path', '');
     const [startupPdfMode, setStartupPdfMode] = useConfig('pdf_startup_mode', '');
     const [autoTranslateSelection, setAutoTranslateSelection] = useConfig('pdf_auto_translate_selection', true);
@@ -336,46 +354,52 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
         setRecentFiles([], true);
     }, [setRecentFiles]);
 
-    const persistTabSnapshot = useCallback(async (tabId = activeTabIdRef.current) => {
-        const tab = tabsRef.current.find((item) => item.id === tabId);
-        if (!tab?.documentState?.dirty) {
-            return;
-        }
-        const bytes = await viewerRef.current?.saveDocument();
-        if (!bytes?.length) {
-            return;
-        }
-        updateTabState(tabId, (currentTab) => ({
-            ...currentTab,
-            source: {
-                ...currentTab.source,
-                data: bytes,
-            },
-        }));
-    }, [updateTabState]);
+    const persistTabSnapshot = useCallback(
+        async (tabId = activeTabIdRef.current) => {
+            const tab = tabsRef.current.find((item) => item.id === tabId);
+            if (!tab?.documentState?.dirty) {
+                return;
+            }
+            const bytes = await viewerRef.current?.saveDocument();
+            if (!bytes?.length) {
+                return;
+            }
+            updateTabState(tabId, (currentTab) => ({
+                ...currentTab,
+                source: {
+                    ...currentTab.source,
+                    data: bytes,
+                },
+            }));
+        },
+        [updateTabState]
+    );
 
-    const applyTabStateToWindow = useCallback((tab) => {
-        if (!tab) {
-            resetWindowState();
-            return;
-        }
-        setSelectionText(tab.selectionText || '');
-        setAnnotations(tab.annotations || []);
-        setOutline(tab.outline || []);
-        setViewerState(tab.viewerState || createEmptyViewerState());
-        setInteractionMode(tab.interactionMode || 'translate');
-        setNavigationMode(tab.navigationMode || 'pages');
-        setSearchQuery(tab.searchQuery || '');
-        setSearchState(tab.searchState || createPdfSearchState());
-        setAnnotationNotes(tab.annotationNotes || {});
-        setSelectedAnnotationKey(tab.selectedAnnotationKey || '');
-        setDocumentState(tab.documentState || createLoadedDocumentState(null));
-        setErrorMessage(tab.errorMessage || '');
-        setThumbnails(tab.thumbnails || []);
-        setCompareViewerState(tab.compareViewerState || createEmptyViewerState());
-        setCompareSyncPages(tab.compareSyncPages !== false);
-        setTranslationCompareState(tab.translationCompareState || createEmptyTranslationCompareState());
-    }, [resetWindowState]);
+    const applyTabStateToWindow = useCallback(
+        (tab) => {
+            if (!tab) {
+                resetWindowState();
+                return;
+            }
+            setSelectionText(tab.selectionText || '');
+            setAnnotations(tab.annotations || []);
+            setOutline(tab.outline || []);
+            setViewerState(tab.viewerState || createEmptyViewerState());
+            setInteractionMode(tab.interactionMode || 'translate');
+            setNavigationMode(tab.navigationMode || 'pages');
+            setSearchQuery(tab.searchQuery || '');
+            setSearchState(tab.searchState || createPdfSearchState());
+            setAnnotationNotes(tab.annotationNotes || {});
+            setSelectedAnnotationKey(tab.selectedAnnotationKey || '');
+            setDocumentState(tab.documentState || createLoadedDocumentState(null));
+            setErrorMessage(tab.errorMessage || '');
+            setThumbnails(tab.thumbnails || []);
+            setCompareViewerState(tab.compareViewerState || createEmptyViewerState());
+            setCompareSyncPages(tab.compareSyncPages !== false);
+            setTranslationCompareState(tab.translationCompareState || createEmptyTranslationCompareState());
+        },
+        [resetWindowState]
+    );
 
     const switchToTab = useCallback(
         async (tabId) => {
@@ -522,7 +546,9 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
     const handleAnnotationNoteChange = useCallback(
         (annotation, note) => {
             const annotationKey = getAnnotationClientKey(annotation);
-            const normalizedNote = String(note || '').replace(/\r\n?/g, '\n').trim();
+            const normalizedNote = String(note || '')
+                .replace(/\r\n?/g, '\n')
+                .trim();
             const nextAnnotationNotes = {
                 ...annotationNotes,
             };
@@ -706,7 +732,9 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
                 compareMode: normalizedPath ? PDF_COMPARE_MODE_DOCUMENT : PDF_COMPARE_MODE_NONE,
                 comparePath: normalizedPath,
                 compareSyncPages: normalizedPath ? tab.compareSyncPages !== false : true,
-                compareViewerState: normalizedPath ? tab.compareViewerState || createEmptyViewerState() : createEmptyViewerState(),
+                compareViewerState: normalizedPath
+                    ? tab.compareViewerState || createEmptyViewerState()
+                    : createEmptyViewerState(),
             }));
         },
         [updateActiveTabState]
@@ -1037,14 +1065,7 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
         return () => {
             cancelled = true;
         };
-    }, [
-        getWorkspaceSnapshot,
-        initialDocument,
-        openDocumentByPath,
-        startupPdfPath,
-        tabs,
-        workspaceSnapshot,
-    ]);
+    }, [getWorkspaceSnapshot, initialDocument, openDocumentByPath, startupPdfPath, tabs, workspaceSnapshot]);
 
     useEffect(() => {
         viewerRef.current?.setHighlightColor(normalizedHighlightColor);
@@ -1095,10 +1116,7 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
         const currentEntry = currentMap?.[documentState.currentPath];
         const nextEntry = nextMap?.[documentState.currentPath];
 
-        if (
-            currentEntry?.pageNumber === nextEntry?.pageNumber &&
-            currentEntry?.scaleValue === nextEntry?.scaleValue
-        ) {
+        if (currentEntry?.pageNumber === nextEntry?.pageNumber && currentEntry?.scaleValue === nextEntry?.scaleValue) {
             return;
         }
 
@@ -1126,10 +1144,7 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
         const currentEntry = currentMap?.[compareTargetTab.source.path];
         const nextEntry = nextMap?.[compareTargetTab.source.path];
 
-        if (
-            currentEntry?.pageNumber === nextEntry?.pageNumber &&
-            currentEntry?.scaleValue === nextEntry?.scaleValue
-        ) {
+        if (currentEntry?.pageNumber === nextEntry?.pageNumber && currentEntry?.scaleValue === nextEntry?.scaleValue) {
             return;
         }
 
@@ -1293,10 +1308,8 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
 
     useEffect(() => {
         const nextTab = tabsRef.current.find((tab) => tab.id === activeTabId) || null;
-        const loadGeneration = loadGenerationRef.current + 1;
-        loadGenerationRef.current = loadGeneration;
-
         if (!nextTab) {
+            primaryLoadSignatureRef.current = { tabId: null, data: null, path: '' };
             resetWindowState();
             void viewerRef.current?.clearDocument?.();
             return;
@@ -1305,6 +1318,26 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
         applyTabStateToWindow(nextTab);
         setDropState({ active: false, name: '' });
 
+        const nextLoadSignature = {
+            tabId: nextTab.id,
+            data: nextTab.source?.data || null,
+            path: nextTab.source?.path || '',
+        };
+
+        const shouldOpenDocument =
+            primaryLoadSignatureRef.current.tabId !== nextLoadSignature.tabId ||
+            primaryLoadSignatureRef.current.data !== nextLoadSignature.data ||
+            primaryLoadSignatureRef.current.path !== nextLoadSignature.path;
+
+        if (!shouldOpenDocument) {
+            viewerRef.current?.setHighlightMode(nextTab.interactionMode === 'highlight');
+            return;
+        }
+
+        primaryLoadSignatureRef.current = nextLoadSignature;
+        const loadGeneration = loadGenerationRef.current + 1;
+        loadGenerationRef.current = loadGeneration;
+
         let cancelled = false;
 
         (async () => {
@@ -1312,7 +1345,8 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
                 await viewerRef.current?.openDocument({
                     data: nextTab.source.data,
                     restoreViewState: nextTab.source.path
-                        ? getPdfReadingProgress(getReadingProgressMap() || {}, nextTab.source.path) || nextTab.viewerState
+                        ? getPdfReadingProgress(getReadingProgressMap() || {}, nextTab.source.path) ||
+                          nextTab.viewerState
                         : nextTab.viewerState,
                 });
 
@@ -1329,16 +1363,11 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
                 }
 
                 viewerRef.current?.setHighlightMode(nextTab.interactionMode === 'highlight');
-                viewerRef.current?.setHighlightColor(normalizedHighlightColor);
-                if (nextTab.searchQuery) {
-                    viewerRef.current?.search?.(nextTab.searchQuery);
-                } else {
-                    viewerRef.current?.clearSearch?.();
-                }
             } catch (error) {
                 if (cancelled || loadGenerationRef.current !== loadGeneration) {
                     return;
                 }
+                primaryLoadSignatureRef.current = { tabId: null, data: null, path: '' };
                 const message = error?.message || error?.toString() || t('pdf.load_error');
                 setErrorMessage(message);
                 updateTabState(nextTab.id, (tab) => ({
@@ -1354,9 +1383,10 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
         };
     }, [
         activeTabId,
+        activeTabData?.source?.data,
+        activeTabData?.source?.path,
         applyTabStateToWindow,
         getReadingProgressMap,
-        normalizedHighlightColor,
         resetWindowState,
         t,
         updateTabState,
@@ -1373,14 +1403,31 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
     }, [activeCompareMode, activeTabData?.comparePath, compareTargetTab, setCompareDocument]);
 
     useEffect(() => {
-        const loadGeneration = compareLoadGenerationRef.current + 1;
-        compareLoadGenerationRef.current = loadGeneration;
-
         if (!compareTargetTab) {
+            compareLoadSignatureRef.current = { tabId: null, data: null, path: '' };
             setCompareViewerState(createEmptyViewerState());
             void compareViewerRef.current?.clearDocument?.();
             return;
         }
+
+        const nextLoadSignature = {
+            tabId: compareTargetTab.id,
+            data: compareTargetTab.source?.data || null,
+            path: compareTargetTab.source?.path || '',
+        };
+
+        const shouldOpenDocument =
+            compareLoadSignatureRef.current.tabId !== nextLoadSignature.tabId ||
+            compareLoadSignatureRef.current.data !== nextLoadSignature.data ||
+            compareLoadSignatureRef.current.path !== nextLoadSignature.path;
+
+        if (!shouldOpenDocument) {
+            return;
+        }
+
+        compareLoadSignatureRef.current = nextLoadSignature;
+        const loadGeneration = compareLoadGenerationRef.current + 1;
+        compareLoadGenerationRef.current = loadGeneration;
 
         let cancelled = false;
 
@@ -1404,6 +1451,7 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
                 if (cancelled || compareLoadGenerationRef.current !== loadGeneration) {
                     return;
                 }
+                compareLoadSignatureRef.current = { tabId: null, data: null, path: '' };
                 toast.error(error?.message || error?.toString() || t('pdf.load_error'));
             }
         })();
@@ -1460,8 +1508,7 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
             interactionMode,
             focusMode: focusModeEnabled,
             compareMode: activeCompareMode,
-            compareDocumentName:
-                compareTargetTab?.documentState?.documentName || compareTargetTab?.source?.name || '',
+            compareDocumentName: compareTargetTab?.documentState?.documentName || compareTargetTab?.source?.name || '',
             compareCandidates,
             compareSyncPages,
             thumbnailSidebarVisible: thumbnailSidebarEnabled,
@@ -1533,7 +1580,9 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
         highlightColor: normalizedHighlightColor,
         onAnnotationsChange: (nextAnnotations) => {
             const nextKeys = nextAnnotations.map((annotation) => getAnnotationClientKey(annotation));
-            const nextSelectedKey = nextKeys.includes(selectedAnnotationKey) ? selectedAnnotationKey : nextKeys[0] || '';
+            const nextSelectedKey = nextKeys.includes(selectedAnnotationKey)
+                ? selectedAnnotationKey
+                : nextKeys[0] || '';
             setAnnotations(nextAnnotations);
             setSelectedAnnotationKey(nextSelectedKey);
             updateActiveTabState((tab) => ({
@@ -1610,12 +1659,12 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
     const contentGridClass = focusModeEnabled
         ? 'grid-cols-[minmax(0,1fr)]'
         : hasSecondaryComparePane && thumbnailSidebarEnabled
-          ? 'grid-cols-[220px_minmax(0,1fr)_360px]'
+          ? 'grid-cols-[200px_minmax(0,1fr)_minmax(280px,28vw)] xl:grid-cols-[220px_minmax(0,1fr)_320px] 2xl:grid-cols-[220px_minmax(0,1fr)_360px]'
           : hasSecondaryComparePane
-            ? 'grid-cols-[minmax(0,1fr)_360px]'
-        : thumbnailSidebarEnabled
-          ? 'grid-cols-[252px_minmax(0,1fr)_420px]'
-          : 'grid-cols-[minmax(0,1fr)_420px]';
+            ? 'grid-cols-[minmax(0,1fr)_minmax(280px,28vw)] xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_360px]'
+            : thumbnailSidebarEnabled
+              ? 'grid-cols-[220px_minmax(0,1fr)_minmax(280px,30vw)] xl:grid-cols-[236px_minmax(0,1fr)_360px] 2xl:grid-cols-[252px_minmax(0,1fr)_420px]'
+              : 'grid-cols-[minmax(0,1fr)_minmax(280px,30vw)] xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_420px]';
 
     return (
         <div
@@ -1675,17 +1724,17 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
             {!focusModeEnabled ? (
                 <PdfTabStrip
                     tabs={displayTabs}
-                activeTabId={activeTabId}
-                onSelectTab={switchToTab}
-                onCloseTab={closeTab}
-                onOpenDocument={openDocument}
-                onTogglePinTab={(tabId, nextPinned) => setTabPinned(tabId, nextPinned)}
-                onCloseOtherTabs={closeOtherTabs}
-                onCloseTabsToRight={closeTabsToRight}
-                onReorderTabs={reorderTabs}
-                recentlyClosedTabs={normalizedRecentlyClosedTabs}
-                onRestoreClosedTab={restoreClosedTab}
-            />
+                    activeTabId={activeTabId}
+                    onSelectTab={switchToTab}
+                    onCloseTab={closeTab}
+                    onOpenDocument={openDocument}
+                    onTogglePinTab={(tabId, nextPinned) => setTabPinned(tabId, nextPinned)}
+                    onCloseOtherTabs={closeOtherTabs}
+                    onCloseTabsToRight={closeTabsToRight}
+                    onReorderTabs={reorderTabs}
+                    recentlyClosedTabs={normalizedRecentlyClosedTabs}
+                    onRestoreClosedTab={restoreClosedTab}
+                />
             ) : null}
 
             <div
@@ -1813,14 +1862,19 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
                                                 key={file.path}
                                                 type='button'
                                                 className='rounded-[20px] border border-default-100 bg-default-50/70 px-[16px] py-[12px] transition hover:bg-default-100/80'
-                                                onClick={() => openDocumentByPath(file.path, { removeIfUnreadable: true })}
+                                                onClick={() =>
+                                                    openDocumentByPath(file.path, { removeIfUnreadable: true })
+                                                }
                                             >
                                                 <div className='flex items-center justify-between gap-[8px]'>
-                                                    <div className='text-sm font-medium text-foreground truncate'>{file.name}</div>
+                                                    <div className='text-sm font-medium text-foreground truncate'>
+                                                        {file.name}
+                                                    </div>
                                                     {normalizedReadingProgressMap[file.path]?.pageNumber ? (
                                                         <div className='shrink-0 rounded-full bg-default-100 px-[8px] py-[3px] text-[11px] text-default-500'>
                                                             {t('pdf.resume_page', {
-                                                                page: normalizedReadingProgressMap[file.path].pageNumber,
+                                                                page: normalizedReadingProgressMap[file.path]
+                                                                    .pageNumber,
                                                             })}
                                                         </div>
                                                     ) : null}
@@ -1838,7 +1892,7 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
 
                     <div className={`h-full ${focusModeEnabled ? 'p-[20px]' : 'p-[14px]'}`}>
                         {compareTargetTab ? (
-                            <div className='grid h-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-[14px]'>
+                            <div className='grid h-full grid-cols-1 gap-[14px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]'>
                                 <div className='min-h-0 flex flex-col rounded-[24px] border border-default-100 bg-content1/80 p-[10px]'>
                                     <div className='mb-[10px] flex items-center justify-between gap-[10px] rounded-[18px] bg-default-50/80 px-[12px] py-[10px]'>
                                         <div className='min-w-0'>
@@ -1894,11 +1948,13 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
                                             compareViewerState: nextViewerState,
                                         }));
                                     }}
-                                    onError={(error) => toast.error(error?.message || error?.toString() || t('pdf.load_error'))}
+                                    onError={(error) =>
+                                        toast.error(error?.message || error?.toString() || t('pdf.load_error'))
+                                    }
                                 />
                             </div>
                         ) : translationCompareActive ? (
-                            <div className='grid h-full grid-cols-[minmax(0,1fr)_minmax(340px,0.92fr)] gap-[14px]'>
+                            <div className='grid h-full grid-cols-1 gap-[14px] xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.92fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.92fr)]'>
                                 <div className='min-h-0 flex flex-col rounded-[24px] border border-default-100 bg-content1/80 p-[10px]'>
                                     <div className='mb-[10px] flex items-center justify-between gap-[10px] rounded-[18px] bg-default-50/80 px-[12px] py-[10px]'>
                                         <div className='min-w-0'>
@@ -1947,52 +2003,52 @@ export default function PdfWindow({ adapter = createDefaultAdapter(), initialDoc
 
                 {!focusModeEnabled ? (
                     <aside className='min-h-0 overflow-hidden rounded-[28px] bg-content1/95 px-[18px] py-[18px] shadow-sm ring-1 ring-black/5 dark:ring-white/10 backdrop-blur'>
-                    {interactionMode === 'highlight' ? (
-                        <PdfAnnotationSidebar
-                            annotations={displayAnnotations}
-                            documentName={documentState.documentName}
-                            documentPath={documentState.currentPath}
-                            dirty={documentState.dirty}
-                            canSave={Boolean(documentState.documentName)}
-                            canExport={displayAnnotations.length > 0}
-                            highlightColor={normalizedHighlightColor}
-                            selectedAnnotation={selectedAnnotation}
-                            selectedAnnotationKey={selectedAnnotationKey}
-                            onHighlightColorChange={setHighlightColor}
-                            onSelectAnnotation={(annotation) => updateSelectedAnnotation(annotation.annotationKey)}
-                            onFocusAnnotation={focusAnnotation}
-                            onDeleteAnnotation={deleteAnnotation}
-                            onAnnotationNoteChange={handleAnnotationNoteChange}
-                            onExportExtracts={exportExtracts}
-                            onExitHighlightMode={() => changeInteractionMode('translate')}
-                            onSave={saveCurrentDocument}
-                        />
-                    ) : (
-                        <PdfTranslateSidebar
-                            documentPath={documentState.currentPath}
-                            documentName={documentState.documentName}
-                            currentPage={viewerState.currentPage}
-                            sessionKey={activeTabId || 'empty'}
-                            selectionText={selectionText}
-                            autoTranslateSelection={shouldAutoTranslateSelection({
-                                interactionMode,
-                                autoTranslateSelection: autoTranslateSelectionEnabled,
-                            })}
-                            onAutoTranslateSelectionChange={setAutoTranslateSelection}
-                            onRequestHighlightMode={() => changeInteractionMode('highlight')}
-                            onTranslationCompareStateChange={(nextCompareState) => {
-                                const normalizedCompareState = {
-                                    ...createEmptyTranslationCompareState(),
-                                    ...nextCompareState,
-                                };
-                                setTranslationCompareState(normalizedCompareState);
-                                updateActiveTabState((tab) => ({
-                                    ...tab,
-                                    translationCompareState: normalizedCompareState,
-                                }));
-                            }}
-                        />
-                    )}
+                        {interactionMode === 'highlight' ? (
+                            <PdfAnnotationSidebar
+                                annotations={displayAnnotations}
+                                documentName={documentState.documentName}
+                                documentPath={documentState.currentPath}
+                                dirty={documentState.dirty}
+                                canSave={Boolean(documentState.documentName)}
+                                canExport={displayAnnotations.length > 0}
+                                highlightColor={normalizedHighlightColor}
+                                selectedAnnotation={selectedAnnotation}
+                                selectedAnnotationKey={selectedAnnotationKey}
+                                onHighlightColorChange={setHighlightColor}
+                                onSelectAnnotation={(annotation) => updateSelectedAnnotation(annotation.annotationKey)}
+                                onFocusAnnotation={focusAnnotation}
+                                onDeleteAnnotation={deleteAnnotation}
+                                onAnnotationNoteChange={handleAnnotationNoteChange}
+                                onExportExtracts={exportExtracts}
+                                onExitHighlightMode={() => changeInteractionMode('translate')}
+                                onSave={saveCurrentDocument}
+                            />
+                        ) : (
+                            <PdfTranslateSidebar
+                                documentPath={documentState.currentPath}
+                                documentName={documentState.documentName}
+                                currentPage={viewerState.currentPage}
+                                sessionKey={activeTabId || 'empty'}
+                                selectionText={selectionText}
+                                autoTranslateSelection={shouldAutoTranslateSelection({
+                                    interactionMode,
+                                    autoTranslateSelection: autoTranslateSelectionEnabled,
+                                })}
+                                onAutoTranslateSelectionChange={setAutoTranslateSelection}
+                                onRequestHighlightMode={() => changeInteractionMode('highlight')}
+                                onTranslationCompareStateChange={(nextCompareState) => {
+                                    const normalizedCompareState = {
+                                        ...createEmptyTranslationCompareState(),
+                                        ...nextCompareState,
+                                    };
+                                    setTranslationCompareState(normalizedCompareState);
+                                    updateActiveTabState((tab) => ({
+                                        ...tab,
+                                        translationCompareState: normalizedCompareState,
+                                    }));
+                                }}
+                            />
+                        )}
                     </aside>
                 ) : null}
             </div>

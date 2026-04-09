@@ -1,13 +1,4 @@
-import {
-    Button,
-    Chip,
-    Dropdown,
-    DropdownItem,
-    DropdownMenu,
-    DropdownTrigger,
-    Input,
-    Tooltip,
-} from '@nextui-org/react';
+import { Button, Chip, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, Tooltip } from '@nextui-org/react';
 import { AiOutlineFilePdf, AiOutlineSave } from 'react-icons/ai';
 import { HiOutlineDocumentAdd, HiTranslate } from 'react-icons/hi';
 import { MdHighlightAlt, MdOutlineCenterFocusStrong } from 'react-icons/md';
@@ -84,255 +75,271 @@ export default function PdfToolbar({
               });
 
     return (
-        <div className='flex items-center gap-[12px] px-[16px] py-[12px] border-b-1 border-default-100 bg-content1/90 backdrop-blur supports-[backdrop-filter]:bg-content1/75'>
-            <div className='flex items-center gap-[4px] rounded-full bg-default-100/80 p-[4px]'>
-                <Tooltip content={t('pdf.toggle_navigation_sidebar')}>
-                    <Button
-                        isIconOnly
-                        radius='full'
-                        variant='light'
-                        onPress={onToggleThumbnailSidebar}
-                    >
-                        {thumbnailSidebarVisible ? (
-                            <LuPanelLeftClose className='text-[18px]' />
-                        ) : (
-                            <LuPanelLeft className='text-[18px]' />
-                        )}
-                    </Button>
-                </Tooltip>
-                <Tooltip content={t('pdf.open')}>
-                    <Button
-                        isIconOnly
-                        radius='full'
-                        variant='light'
-                        onPress={onOpen}
-                    >
-                        <AiOutlineFilePdf className='text-[18px]' />
-                    </Button>
-                </Tooltip>
-                <Dropdown placement='bottom-start'>
-                    <DropdownTrigger>
-                        <div>
-                            <Tooltip content={t('pdf.recent_files')}>
-                                <Button
-                                    isIconOnly
-                                    radius='full'
-                                    variant='light'
-                                    isDisabled={!hasRecentFiles}
-                                >
-                                    <LuHistory className='text-[18px]' />
-                                </Button>
-                            </Tooltip>
-                        </div>
-                    </DropdownTrigger>
-                    <DropdownMenu
-                        aria-label={t('pdf.recent_files')}
-                        disabledKeys={hasRecentFiles ? [] : ['empty']}
-                        onAction={(key) => {
-                            if (key === 'clear') {
-                                onClearRecentFiles?.();
-                                return;
-                            }
-                            onOpenRecent?.(String(key));
-                        }}
-                    >
-                        {hasRecentFiles
-                            ? recentFiles.map((file) => (
-                                  <DropdownItem
-                                      key={file.path}
-                                      textValue={`${file.name} ${file.path}`}
-                                      description={file.path}
-                                  >
-                                      {file.name}
-                                  </DropdownItem>
-                              ))
-                            : (
-                                  <DropdownItem
-                                      key='empty'
-                                      className='text-default-400'
-                                  >
-                                      {t('pdf.recent_files_empty')}
-                                  </DropdownItem>
-                              )}
-                        {hasRecentFiles ? (
-                            <DropdownItem
-                                key='clear'
-                                className='text-danger'
-                                color='danger'
-                            >
-                                {t('pdf.clear_recent_files')}
-                            </DropdownItem>
-                        ) : null}
-                    </DropdownMenu>
-                </Dropdown>
-                <Tooltip content={t('pdf.save')}>
-                    <Button
-                        isIconOnly
-                        radius='full'
-                        variant='light'
-                        onPress={onSave}
-                        isDisabled={!documentName}
-                    >
-                        <AiOutlineSave className='text-[18px]' />
-                    </Button>
-                </Tooltip>
-                <Tooltip content={t('pdf.save_as')}>
-                    <Button
-                        isIconOnly
-                        radius='full'
-                        variant='light'
-                        onPress={onSaveAs}
-                        isDisabled={!documentName}
-                    >
-                        <HiOutlineDocumentAdd className='text-[18px]' />
-                    </Button>
-                </Tooltip>
-            </div>
-
-            <div className='h-[24px] w-px bg-default-200' />
-
-            <div className='flex items-center gap-[6px] rounded-full bg-default-100/70 px-[6px] py-[4px]'>
-                <Button
-                    isIconOnly
-                    radius='full'
-                    variant='light'
-                    onPress={onPreviousPage}
-                    isDisabled={pageCount === 0}
-                >
-                    <FaChevronLeft className='text-[14px]' />
-                </Button>
-                <div className='flex items-center gap-[6px] w-[132px]'>
-                    <Input
-                        aria-label={t('pdf.page')}
-                        size='sm'
-                        radius='full'
-                        classNames={{ inputWrapper: 'bg-content1 shadow-none' }}
-                        value={pageInput}
-                        onChange={(event) => setPageInput(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                                onPageSubmit(Number(pageInput));
-                            }
-                        }}
-                    />
-                    <span className='text-sm text-default-500 whitespace-nowrap'>/ {pageCount || 0}</span>
-                </div>
-                <Button
-                    isIconOnly
-                    radius='full'
-                    variant='light'
-                    onPress={onNextPage}
-                    isDisabled={pageCount === 0}
-                >
-                    <FaChevronRight className='text-[14px]' />
-                </Button>
-            </div>
-
-            <div className='flex items-center gap-[4px] rounded-full bg-default-100/70 p-[4px]'>
-                <Button
-                    isIconOnly
-                    radius='full'
-                    variant='light'
-                    onPress={onZoomOut}
-                    isDisabled={pageCount === 0}
-                >
-                    <FiZoomOut className='text-[16px]' />
-                </Button>
-                <Button
-                    radius='full'
-                    variant='light'
-                    onPress={onFitWidth}
-                    isDisabled={pageCount === 0}
-                >
-                    {Math.round((scale || 1) * 100)}%
-                </Button>
-                <Button
-                    isIconOnly
-                    radius='full'
-                    variant='light'
-                    onPress={onZoomIn}
-                    isDisabled={pageCount === 0}
-                >
-                    <FiZoomIn className='text-[16px]' />
-                </Button>
-            </div>
-
-            <div className='min-w-[320px] max-w-[420px] flex-1'>
-                <div className='flex items-center gap-[8px] rounded-[22px] bg-default-100/70 px-[8px] py-[6px]'>
-                    <Input
-                        aria-label={t('pdf.search_placeholder')}
-                        placeholder={t('pdf.search_placeholder')}
-                        data-testid='pdf-search-input'
-                        size='sm'
-                        radius='full'
-                        isDisabled={!hasDocument}
-                        value={searchQuery}
-                        onChange={(event) => onSearchChange?.(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                                event.preventDefault();
-                                if (event.shiftKey) {
-                                    onSearchPrevious?.();
+        <div className='flex flex-wrap items-start gap-x-[12px] gap-y-[10px] border-b-1 border-default-100 bg-content1/90 px-[16px] py-[12px] backdrop-blur supports-[backdrop-filter]:bg-content1/75'>
+            <div className='flex min-w-0 flex-1 flex-wrap items-center gap-[12px]'>
+                <div className='flex shrink-0 items-center gap-[4px] rounded-full bg-default-100/80 p-[4px]'>
+                    <Tooltip content={t('pdf.toggle_navigation_sidebar')}>
+                        <Button
+                            isIconOnly
+                            aria-label={t('pdf.toggle_navigation_sidebar')}
+                            radius='full'
+                            variant='light'
+                            onPress={onToggleThumbnailSidebar}
+                        >
+                            {thumbnailSidebarVisible ? (
+                                <LuPanelLeftClose className='text-[18px]' />
+                            ) : (
+                                <LuPanelLeft className='text-[18px]' />
+                            )}
+                        </Button>
+                    </Tooltip>
+                    <Tooltip content={t('pdf.open')}>
+                        <Button
+                            isIconOnly
+                            aria-label={t('pdf.open')}
+                            radius='full'
+                            variant='light'
+                            onPress={onOpen}
+                        >
+                            <AiOutlineFilePdf className='text-[18px]' />
+                        </Button>
+                    </Tooltip>
+                    <Dropdown placement='bottom-start'>
+                        <DropdownTrigger>
+                            <div>
+                                <Tooltip content={t('pdf.recent_files')}>
+                                    <Button
+                                        isIconOnly
+                                        aria-label={t('pdf.recent_files')}
+                                        radius='full'
+                                        variant='light'
+                                        isDisabled={!hasRecentFiles}
+                                    >
+                                        <LuHistory className='text-[18px]' />
+                                    </Button>
+                                </Tooltip>
+                            </div>
+                        </DropdownTrigger>
+                        <DropdownMenu
+                            aria-label={t('pdf.recent_files')}
+                            disabledKeys={hasRecentFiles ? [] : ['empty']}
+                            onAction={(key) => {
+                                if (key === 'clear') {
+                                    onClearRecentFiles?.();
                                     return;
                                 }
-                                onSearchNext?.();
-                            }
-                        }}
-                        startContent={<LuSearch className='text-[16px] text-default-400' />}
-                        endContent={
-                            hasSearch ? (
-                                <Button
-                                    isIconOnly
-                                    radius='full'
-                                    size='sm'
-                                    variant='light'
-                                    onPress={onSearchClear}
+                                onOpenRecent?.(String(key));
+                            }}
+                        >
+                            {hasRecentFiles ? (
+                                recentFiles.map((file) => (
+                                    <DropdownItem
+                                        key={file.path}
+                                        textValue={`${file.name} ${file.path}`}
+                                        description={file.path}
+                                    >
+                                        {file.name}
+                                    </DropdownItem>
+                                ))
+                            ) : (
+                                <DropdownItem
+                                    key='empty'
+                                    className='text-default-400'
                                 >
-                                    <LuX className='text-[14px]' />
-                                </Button>
-                            ) : null
-                        }
-                        classNames={{
-                            base: 'flex-1',
-                            inputWrapper: 'bg-content1 shadow-none',
-                        }}
-                    />
+                                    {t('pdf.recent_files_empty')}
+                                </DropdownItem>
+                            )}
+                            {hasRecentFiles ? (
+                                <DropdownItem
+                                    key='clear'
+                                    className='text-danger'
+                                    color='danger'
+                                >
+                                    {t('pdf.clear_recent_files')}
+                                </DropdownItem>
+                            ) : null}
+                        </DropdownMenu>
+                    </Dropdown>
+                    <Tooltip content={t('pdf.save')}>
+                        <Button
+                            isIconOnly
+                            aria-label={t('pdf.save')}
+                            radius='full'
+                            variant='light'
+                            onPress={onSave}
+                            isDisabled={!documentName}
+                        >
+                            <AiOutlineSave className='text-[18px]' />
+                        </Button>
+                    </Tooltip>
+                    <Tooltip content={t('pdf.save_as')}>
+                        <Button
+                            isIconOnly
+                            aria-label={t('pdf.save_as')}
+                            radius='full'
+                            variant='light'
+                            onPress={onSaveAs}
+                            isDisabled={!documentName}
+                        >
+                            <HiOutlineDocumentAdd className='text-[18px]' />
+                        </Button>
+                    </Tooltip>
+                </div>
+
+                <div className='hidden h-[24px] w-px bg-default-200 xl:block' />
+
+                <div className='flex shrink-0 items-center gap-[6px] rounded-full bg-default-100/70 px-[6px] py-[4px]'>
                     <Button
                         isIconOnly
+                        aria-label='Previous page'
                         radius='full'
                         variant='light'
-                        onPress={onSearchPrevious}
-                        isDisabled={!hasSearch || !hasDocument}
+                        onPress={onPreviousPage}
+                        isDisabled={pageCount === 0}
                     >
-                        <FaChevronLeft className='text-[13px]' />
+                        <FaChevronLeft className='text-[14px]' />
                     </Button>
-                    <Button
-                        isIconOnly
-                        radius='full'
-                        variant='light'
-                        onPress={onSearchNext}
-                        isDisabled={!hasSearch || !hasDocument}
-                    >
-                        <FaChevronRight className='text-[13px]' />
-                    </Button>
-                    {searchSummary ? (
-                        <Chip
+                    <div className='flex w-[116px] items-center gap-[6px] xl:w-[132px]'>
+                        <Input
+                            aria-label={t('pdf.page')}
                             size='sm'
                             radius='full'
-                            color={isSearchEmpty ? 'warning' : 'default'}
-                            variant='flat'
-                            className='max-w-[140px] truncate'
+                            classNames={{ inputWrapper: 'bg-content1 shadow-none' }}
+                            value={pageInput}
+                            onChange={(event) => setPageInput(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    onPageSubmit(Number(pageInput));
+                                }
+                            }}
+                        />
+                        <span className='whitespace-nowrap text-sm text-default-500'>/ {pageCount || 0}</span>
+                    </div>
+                    <Button
+                        isIconOnly
+                        aria-label='Next page'
+                        radius='full'
+                        variant='light'
+                        onPress={onNextPage}
+                        isDisabled={pageCount === 0}
+                    >
+                        <FaChevronRight className='text-[14px]' />
+                    </Button>
+                </div>
+
+                <div className='flex shrink-0 items-center gap-[4px] rounded-full bg-default-100/70 p-[4px]'>
+                    <Button
+                        isIconOnly
+                        aria-label='Zoom out'
+                        radius='full'
+                        variant='light'
+                        onPress={onZoomOut}
+                        isDisabled={pageCount === 0}
+                    >
+                        <FiZoomOut className='text-[16px]' />
+                    </Button>
+                    <Button
+                        aria-label='Fit width'
+                        radius='full'
+                        variant='light'
+                        onPress={onFitWidth}
+                        isDisabled={pageCount === 0}
+                    >
+                        {Math.round((scale || 1) * 100)}%
+                    </Button>
+                    <Button
+                        isIconOnly
+                        aria-label='Zoom in'
+                        radius='full'
+                        variant='light'
+                        onPress={onZoomIn}
+                        isDisabled={pageCount === 0}
+                    >
+                        <FiZoomIn className='text-[16px]' />
+                    </Button>
+                </div>
+
+                <div className='order-last min-w-0 basis-full xl:order-none xl:min-w-[280px] xl:max-w-[420px] xl:flex-1'>
+                    <div className='flex items-center gap-[8px] rounded-[22px] bg-default-100/70 px-[8px] py-[6px]'>
+                        <Input
+                            aria-label={t('pdf.search_placeholder')}
+                            placeholder={t('pdf.search_placeholder')}
+                            data-testid='pdf-search-input'
+                            size='sm'
+                            radius='full'
+                            isDisabled={!hasDocument}
+                            value={searchQuery}
+                            onChange={(event) => onSearchChange?.(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    if (event.shiftKey) {
+                                        onSearchPrevious?.();
+                                        return;
+                                    }
+                                    onSearchNext?.();
+                                }
+                            }}
+                            startContent={<LuSearch className='text-[16px] text-default-400' />}
+                            endContent={
+                                hasSearch ? (
+                                    <Button
+                                        isIconOnly
+                                        aria-label='Clear search'
+                                        radius='full'
+                                        size='sm'
+                                        variant='light'
+                                        onPress={onSearchClear}
+                                    >
+                                        <LuX className='text-[14px]' />
+                                    </Button>
+                                ) : null
+                            }
+                            classNames={{
+                                base: 'flex-1',
+                                inputWrapper: 'bg-content1 shadow-none',
+                            }}
+                        />
+                        <Button
+                            isIconOnly
+                            aria-label='Previous match'
+                            radius='full'
+                            variant='light'
+                            onPress={onSearchPrevious}
+                            isDisabled={!hasSearch || !hasDocument}
                         >
-                            {searchSummary}
-                        </Chip>
-                    ) : null}
+                            <FaChevronLeft className='text-[13px]' />
+                        </Button>
+                        <Button
+                            isIconOnly
+                            aria-label='Next match'
+                            radius='full'
+                            variant='light'
+                            onPress={onSearchNext}
+                            isDisabled={!hasSearch || !hasDocument}
+                        >
+                            <FaChevronRight className='text-[13px]' />
+                        </Button>
+                        {searchSummary ? (
+                            <Chip
+                                size='sm'
+                                radius='full'
+                                color={isSearchEmpty ? 'warning' : 'default'}
+                                variant='flat'
+                                className='hidden max-w-[140px] truncate 2xl:inline-flex'
+                            >
+                                {searchSummary}
+                            </Chip>
+                        ) : null}
+                    </div>
                 </div>
             </div>
 
-            <div className='flex items-center gap-[12px] min-w-0'>
-                <div className='flex items-center gap-[4px] rounded-full bg-default-100/80 p-[4px]'>
+            <div className='flex min-w-0 flex-1 flex-wrap items-start justify-end gap-[12px]'>
+                <div className='flex shrink-0 flex-wrap items-center gap-[4px] rounded-full bg-default-100/80 p-[4px]'>
                     <Tooltip content={t('pdf.shortcut_translate_mode')}>
                         <Button
+                            aria-label={t('pdf.mode_translate')}
                             radius='full'
                             size='sm'
                             variant={interactionMode === 'translate' ? 'solid' : 'light'}
@@ -340,11 +347,12 @@ export default function PdfToolbar({
                             startContent={<HiTranslate className='text-[16px]' />}
                             onPress={() => onChangeMode('translate')}
                         >
-                            {t('pdf.mode_translate')}
+                            <span className='hidden xl:inline'>{t('pdf.mode_translate')}</span>
                         </Button>
                     </Tooltip>
                     <Tooltip content={t('pdf.shortcut_highlight_mode')}>
                         <Button
+                            aria-label={t('pdf.mode_highlight')}
                             radius='full'
                             size='sm'
                             variant={interactionMode === 'highlight' ? 'solid' : 'light'}
@@ -352,11 +360,12 @@ export default function PdfToolbar({
                             startContent={<MdHighlightAlt className='text-[16px]' />}
                             onPress={() => onChangeMode('highlight')}
                         >
-                            {t('pdf.mode_highlight')}
+                            <span className='hidden xl:inline'>{t('pdf.mode_highlight')}</span>
                         </Button>
                     </Tooltip>
                     <Tooltip content={t('pdf.shortcut_focus_mode')}>
                         <Button
+                            aria-label={t('pdf.focus_mode')}
                             radius='full'
                             size='sm'
                             variant={focusMode ? 'solid' : 'light'}
@@ -364,13 +373,14 @@ export default function PdfToolbar({
                             startContent={<MdOutlineCenterFocusStrong className='text-[16px]' />}
                             onPress={() => onToggleFocusMode?.()}
                         >
-                            {t('pdf.focus_mode')}
+                            <span className='hidden xl:inline'>{t('pdf.focus_mode')}</span>
                         </Button>
                     </Tooltip>
                     <Dropdown placement='bottom-end'>
                         <DropdownTrigger>
                             <div>
                                 <Button
+                                    aria-label={hasCompare ? t('pdf.compare_active') : t('pdf.compare_mode')}
                                     radius='full'
                                     size='sm'
                                     variant={hasCompare ? 'solid' : 'light'}
@@ -396,9 +406,7 @@ export default function PdfToolbar({
                                 onSelectCompareDocument?.(String(key));
                             }}
                         >
-                            {hasCompare ? (
-                                <DropdownItem key='clear'>{t('pdf.compare_stop')}</DropdownItem>
-                            ) : null}
+                            {hasCompare ? <DropdownItem key='clear'>{t('pdf.compare_stop')}</DropdownItem> : null}
                             {hasDocument ? (
                                 <DropdownItem
                                     key='translation'
@@ -408,30 +416,30 @@ export default function PdfToolbar({
                                     {t('pdf.compare_translation_mode')}
                                 </DropdownItem>
                             ) : null}
-                            {hasCompareCandidates
-                                ? compareCandidates.map((candidate) => (
-                                      <DropdownItem
-                                          key={candidate.path}
-                                          textValue={`${candidate.name} ${candidate.path}`}
-                                          description={candidate.path}
-                                      >
-                                          {candidate.name}
-                                      </DropdownItem>
+                            {hasCompareCandidates ? (
+                                compareCandidates.map((candidate) => (
+                                    <DropdownItem
+                                        key={candidate.path}
+                                        textValue={`${candidate.name} ${candidate.path}`}
+                                        description={candidate.path}
+                                    >
+                                        {candidate.name}
+                                    </DropdownItem>
                                 ))
-                                : (
-                                      <DropdownItem key='empty'>
-                                          {hasDocument ? t('pdf.compare_empty') : t('pdf.compare_disabled')}
-                                      </DropdownItem>
-                                  )}
+                            ) : (
+                                <DropdownItem key='empty'>
+                                    {hasDocument ? t('pdf.compare_empty') : t('pdf.compare_disabled')}
+                                </DropdownItem>
+                            )}
                         </DropdownMenu>
                     </Dropdown>
                 </div>
-                <div className='min-w-0 text-right'>
-                    <div className='text-sm font-medium text-foreground truncate max-w-[320px]'>
+                <div className='min-w-0 basis-full text-left lg:basis-auto lg:flex-1 lg:text-right'>
+                    <div className='max-w-full truncate text-sm font-medium text-foreground 2xl:max-w-[320px] lg:ml-auto'>
                         {documentName || t('pdf.no_document')}
                     </div>
                     {documentName ? (
-                        <div className='mt-[4px] flex items-center justify-end gap-[6px] flex-wrap'>
+                        <div className='mt-[4px] flex flex-wrap items-center gap-[6px] lg:justify-end'>
                             {translationCompareActive ? (
                                 <Chip
                                     size='sm'
