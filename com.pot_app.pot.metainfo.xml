@@ -53,6 +53,20 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release version="3.0.10" date="2026-04-09">
+            <url type="details">https://github.com/shallFun4Learning/pot-withPDF/releases/tag/v3.0.10</url>
+            <description>
+                <p>New feature:</p>
+                <ul>
+                    <li>Open the PDF main window on startup instead of staying tray-only</li>
+                    <li>Restore signed and notarized macOS releases in GitHub Actions</li>
+                </ul>
+                <p>Bugs fixed:</p>
+                <ul>
+                    <li>Show config and updater windows immediately after creating them</li>
+                </ul>
+            </description>
+        </release>
         <release version="3.0.9" date="2026-04-07">
             <url type="details">https://github.com/shallFun4Learning/pot-withPDF/releases/tag/v3.0.9</url>
             <description>

@@ -1,3 +1,14 @@
+## 3.0.10 (2026-4-9)
+
+### New feature:
+
+-   open the PDF main window on app startup instead of staying tray-only
+-   restore macOS signing and notarization in the GitHub release pipeline
+
+### Bugs fixed:
+
+-   show config and updater windows immediately after creating them
+
 ## 3.0.7 (2025-5-10)
 
 ### New feature:

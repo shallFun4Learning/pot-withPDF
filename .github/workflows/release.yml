@@ -77,9 +77,55 @@ jobs:
         if: runner.os == 'Linux'
         run: ./scripts/tauri-build-linux.sh
 
-      - name: Build Tauri bundles (macOS/Windows)
-        if: runner.os != 'Linux'
+      - name: Build Tauri bundles (Windows)
+        if: runner.os == 'Windows'
         run: pnpm tauri build
+
+      - name: Build Tauri bundles (macOS, signed + notarized)
+        if: runner.os == 'macOS'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        shell: bash
+        run: |
+          missing=()
+          for var in APPLE_SIGNING_IDENTITY APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!var}" ]; then
+              missing+=("$var")
+            fi
+          done
+
+          has_api_key_notary=true
+          for var in APPLE_API_ISSUER APPLE_API_KEY; do
+            if [ -z "${!var}" ]; then
+              has_api_key_notary=false
+            fi
+          done
+
+          has_apple_id_notary=true
+          for var in APPLE_ID APPLE_PASSWORD; do
+            if [ -z "${!var}" ]; then
+              has_apple_id_notary=false
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Refusing to publish an unsigned macOS build. Missing required signing secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
+          if [ "$has_api_key_notary" != "true" ] && [ "$has_apple_id_notary" != "true" ]; then
+            echo "::error::Refusing to publish a non-notarized macOS build. Set APPLE_API_ISSUER+APPLE_API_KEY or APPLE_ID+APPLE_PASSWORD." >&2
+            exit 1
+          fi
+
+          pnpm tauri build
 
       - name: Collect distributable bundles
         shell: bash

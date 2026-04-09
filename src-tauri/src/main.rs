@@ -92,10 +92,9 @@ fn main() {
                     set("pdf_startup_mode", mode);
                 }
             }
-            // Check First Run
-            if is_first_run() && start_window.is_none() {
-                // Open Config Window
-                info!("First Run, opening config window");
+            let should_open_first_run_config = is_first_run() && start_window.is_none();
+            if should_open_first_run_config {
+                info!("First run detected, opening config window alongside the main window");
                 config_window();
             }
             app.manage(StringWrapper(Mutex::new("".to_string())));
@@ -142,12 +141,17 @@ fn main() {
                 clipboard_monitor.to_string(),
             )));
             start_clipboard_monitor(app.handle());
-            if let Some(window) = start_window {
-                match window.as_str() {
-                    "pdf" => pdf_window(),
-                    "config" => config_window(),
-                    "updater" => updater_window(),
-                    _ => {}
+            match start_window.as_deref() {
+                Some("pdf") => pdf_window(),
+                Some("config") => config_window(),
+                Some("updater") => updater_window(),
+                Some(window) => {
+                    info!("Unknown startup window '{}', opening the default PDF window", window);
+                    pdf_window();
+                }
+                None => {
+                    info!("No startup window override detected, opening the default PDF window");
+                    pdf_window();
                 }
             }
             Ok(())
