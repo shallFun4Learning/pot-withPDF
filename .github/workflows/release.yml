@@ -269,19 +269,41 @@ jobs:
 
           gh release upload "$TAG_NAME" --repo "$GH_REPO" "${files[@]}" --clobber
 
-          asset_count="$(gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets | length')"
+          uploaded_asset_names=()
+          asset_count=0
+          for attempt in $(seq 1 10); do
+            mapfile -t uploaded_asset_names < <(gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets[].name')
+            asset_count="${#uploaded_asset_names[@]}"
+            if [ "$asset_count" -ge 3 ]; then
+              break
+            fi
+            echo "release asset list not ready yet, retrying notes update ($attempt/10)"
+            sleep 3
+          done
+
           if [ "${asset_count:-0}" -lt 3 ]; then
             echo "::error::GitHub release has fewer than 3 distributable assets after upload" >&2
             exit 1
           fi
 
-          mapfile -t uploaded_asset_names < <(gh release view "$TAG_NAME" --repo "$GH_REPO" --json assets --jq '.assets[].name')
           node scripts/generate-release-notes.mjs \
             --repo "$GH_REPO" \
             --tag "$TAG_NAME" \
             "${uploaded_asset_names[@]}" > release-notes.md
 
-          gh release edit "$TAG_NAME" --repo "$GH_REPO" --notes-file release-notes.md
+          for attempt in $(seq 1 10); do
+            if gh release edit "$TAG_NAME" --repo "$GH_REPO" --notes-file release-notes.md; then
+              break
+            fi
+
+            if [ "$attempt" -eq 10 ]; then
+              echo "::error::Failed to update release notes after uploading assets" >&2
+              exit 1
+            fi
+
+            echo "release notes update not ready yet, retrying ($attempt/10)"
+            sleep 3
+          done
 
           echo "release assets:"
           printf ' - %s\n' "${uploaded_asset_names[@]}"

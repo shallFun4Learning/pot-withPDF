@@ -20,8 +20,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      CURRENT_TAG: v3.0.9
-      STALE_TAGS: v3.0.7 v3.0.8
+      STALE_TAGS: v3.0.10 v3.0.7 v3.0.8
 
     steps:
       - name: Checkout
@@ -31,6 +30,17 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
+
+      - name: Resolve current release tag
+        id: release_meta
+        shell: bash
+        run: |
+          current_tag="$(git tag --sort=-version:refname | head -n 1)"
+          if [ -z "$current_tag" ]; then
+            echo "::error::No git tag found to maintain" >&2
+            exit 1
+          fi
+          echo "current_tag=$current_tag" >> "$GITHUB_OUTPUT"
 
       - name: Delete stale releases and tags
         shell: bash
@@ -53,18 +63,19 @@ jobs:
       - name: Refresh current release notes
         shell: bash
         run: |
-          mapfile -t assets < <(gh release view "$CURRENT_TAG" --repo "$GH_REPO" --json assets --jq '.assets[].name')
+          current_tag="${{ steps.release_meta.outputs.current_tag }}"
+          mapfile -t assets < <(gh release view "$current_tag" --repo "$GH_REPO" --json assets --jq '.assets[].name')
           if [ "${#assets[@]}" -eq 0 ]; then
-            echo "::error::No assets found on $CURRENT_TAG; aborting maintenance update" >&2
+            echo "::error::No assets found on $current_tag; aborting maintenance update" >&2
             exit 1
           fi
 
           node scripts/generate-release-notes.mjs \
             --repo "$GH_REPO" \
-            --tag "$CURRENT_TAG" \
+            --tag "$current_tag" \
             "${assets[@]}" > release-notes.md
 
-          gh release edit "$CURRENT_TAG" \
+          gh release edit "$current_tag" \
             --repo "$GH_REPO" \
-            --title "pot-withPDF $CURRENT_TAG" \
+            --title "pot-withPDF $current_tag" \
             --notes-file release-notes.md
