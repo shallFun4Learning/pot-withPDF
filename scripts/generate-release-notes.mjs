@@ -102,6 +102,7 @@ lines.push(
   "",
   "- Windows 用户优先下载 **Setup.exe**；需要企业分发时可选 **MSI**。",
   "- macOS 请按芯片架构选择安装包；Apple Silicon 设备优先选择 `aarch64.dmg`。",
+  "- macOS 发布流程优先生成已签名并公证的安装包；当仓库未配置 Apple 公证凭据时，会回退为 ad-hoc 签名，首次打开可能需要在“隐私与安全性”中手动放行。",
   "- Linux 用户可按环境选择 **AppImage / DEB / RPM**。",
   "",
   "## 项目信息",

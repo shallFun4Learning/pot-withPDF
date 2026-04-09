@@ -81,7 +81,7 @@ jobs:
         if: runner.os == 'Windows'
         run: pnpm tauri build
 
-      - name: Build Tauri bundles (macOS, signed + notarized)
+      - name: Build Tauri bundles (macOS)
         if: runner.os == 'macOS'
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -94,10 +94,10 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         shell: bash
         run: |
-          missing=()
+          has_full_apple_signing=true
           for var in APPLE_SIGNING_IDENTITY APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_TEAM_ID; do
             if [ -z "${!var}" ]; then
-              missing+=("$var")
+              has_full_apple_signing=false
             fi
           done
 
@@ -115,14 +115,18 @@ jobs:
             fi
           done
 
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "::error::Refusing to publish an unsigned macOS build. Missing required signing secrets: ${missing[*]}" >&2
-            exit 1
-          fi
-
-          if [ "$has_api_key_notary" != "true" ] && [ "$has_apple_id_notary" != "true" ]; then
-            echo "::error::Refusing to publish a non-notarized macOS build. Set APPLE_API_ISSUER+APPLE_API_KEY or APPLE_ID+APPLE_PASSWORD." >&2
-            exit 1
+          if [ "$has_full_apple_signing" = "true" ] && { [ "$has_api_key_notary" = "true" ] || [ "$has_apple_id_notary" = "true" ]; }; then
+            echo "Using Apple Developer signing and notarization for the macOS release."
+          else
+            echo "::warning::Apple signing/notarization secrets are incomplete; falling back to ad-hoc macOS signing." >&2
+            export APPLE_SIGNING_IDENTITY="-"
+            unset APPLE_CERTIFICATE
+            unset APPLE_CERTIFICATE_PASSWORD
+            unset APPLE_TEAM_ID
+            unset APPLE_API_ISSUER
+            unset APPLE_API_KEY
+            unset APPLE_ID
+            unset APPLE_PASSWORD
           fi
 
           pnpm tauri build

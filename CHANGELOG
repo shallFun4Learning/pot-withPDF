@@ -1,9 +1,9 @@
-## 3.0.10 (2026-4-9)
+## 3.0.11 (2026-4-9)
 
 ### New feature:
 
 -   open the PDF main window on app startup instead of staying tray-only
--   restore macOS signing and notarization in the GitHub release pipeline
+-   restore macOS release signing with a notarized-or-ad-hoc fallback in GitHub Actions
 
 ### Bugs fixed:
 
